@@ -103,11 +103,11 @@
             </div>
             <div class="d-flex justify-content-between mb-2">
               <span><span class="badge bg-info">Medium</span></span>
-              <span class="fw-bold"><%= riskSummary.medium_risk || 0 %></span>
+              <span class="fw-bold"><%= riskSummary.mediumRisk || 0 %></span>
             </div>
             <div class="d-flex justify-content-between">
               <span><span class="badge bg-success">Low</span></span>
-              <span class="fw-bold"><%= riskSummary.low_risk || 0 %></span>
+              <span class="fw-bold"><%= riskSummary.lowRisk || 0 %></span>
             </div>
           </div>
         </div>
@@ -408,8 +408,8 @@ document.addEventListener('DOMContentLoaded', function() {
           data: [
             <%= criticalUnits.length %>,
             <%= highRiskUnits.length %>,
-            <%= riskSummary.medium_risk || 0 %>,
-            <%= riskSummary.low_risk || 0 %>
+            <%= riskSummary.mediumRisk || 0 %>,
+            <%= riskSummary.lowRisk || 0 %>
           ],
           backgroundColor: ['#dc3545', '#ffc107', '#17a2b8', '#28a745']
         }]
