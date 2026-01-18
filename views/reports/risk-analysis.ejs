@@ -400,29 +400,37 @@ document.addEventListener('DOMContentLoaded', function() {
   // Risk Distribution Chart
   const riskDistCtx = document.getElementById('riskDistributionChart');
   if (riskDistCtx) {
-    new Chart(riskDistCtx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Critical', 'High', 'Medium', 'Low'],
-        datasets: [{
-          data: [
-            <%= criticalUnits.length %>,
-            <%= highRiskUnits.length %>,
-            <%= riskSummary.mediumRisk || 0 %>,
-            <%= riskSummary.lowRisk || 0 %>
-          ],
-          backgroundColor: ['#dc3545', '#ffc107', '#17a2b8', '#28a745']
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
+    const chartData = [
+      <%= criticalUnits ? criticalUnits.length : 0 %>,
+      <%= highRiskUnits ? highRiskUnits.length : 0 %>,
+      <%= typeof riskSummary !== 'undefined' && riskSummary.mediumRisk ? riskSummary.mediumRisk : 0 %>,
+      <%= typeof riskSummary !== 'undefined' && riskSummary.lowRisk ? riskSummary.lowRisk : 0 %>
+    ];
+    console.log('Risk Distribution Data:', chartData);
+
+    // Only create chart if there's data
+    if (chartData.some(v => v > 0)) {
+      new Chart(riskDistCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Critical', 'High', 'Medium', 'Low'],
+          datasets: [{
+            data: chartData,
+            backgroundColor: ['#dc3545', '#ffc107', '#17a2b8', '#28a745']
+          }]
         },
-        cutout: '60%'
-      }
-    });
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          cutout: '60%'
+        }
+      });
+    } else {
+      riskDistCtx.parentElement.innerHTML = '<p class="text-muted text-center py-4">No risk data available</p>';
+    }
   }
 
   // Risk Factors Chart
