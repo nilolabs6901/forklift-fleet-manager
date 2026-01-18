@@ -1,0 +1,14 @@
+[
+  {
+    "id": "FK001",
+    "location": "Warehouse A",
+    "status": "idle",
+    "model": "Toyota 8FGU25",
+    "purchaseDate": "2021-05-15",
+    "operatingHours": 0,
+    "maintenanceHistory": [],
+    "alerts": [],
+    "riskLevel": "low",
+    "createdAt": "2026-01-16T23:57:25.459Z"
+  }
+]

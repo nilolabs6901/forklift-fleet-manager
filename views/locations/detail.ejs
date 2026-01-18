@@ -1,0 +1,217 @@
+<div class="container-fluid">
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/locations">Locations</a></li>
+      <li class="breadcrumb-item active"><%= location.name %></li>
+    </ol>
+  </nav>
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1"><%= location.name %></h1>
+      <span class="badge bg-secondary"><%= location.type %></span>
+      <% if (location.address) { %>
+        <span class="text-muted ms-2"><i class="bi bi-geo me-1"></i><%= location.address %></span>
+      <% } %>
+    </div>
+    <a href="/forklifts/new?location=<%= location.id %>" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> Add Forklift Here
+    </a>
+  </div>
+
+  <!-- Service Center Contact Info -->
+  <% if (location.service_center_phone || location.service_center_email || location.service_center_contact) { %>
+  <div class="card mb-4 border-primary">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0"><i class="bi bi-headset me-2"></i>Service Center Contact</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <% if (location.service_center_contact) { %>
+        <div class="col-md-4">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-person-circle fs-4 text-primary me-3"></i>
+            <div>
+              <small class="text-muted d-block">Point of Contact</small>
+              <strong><%= location.service_center_contact %></strong>
+            </div>
+          </div>
+        </div>
+        <% } %>
+        <% if (location.service_center_phone) { %>
+        <div class="col-md-4">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-telephone-fill fs-4 text-success me-3"></i>
+            <div>
+              <small class="text-muted d-block">Phone</small>
+              <a href="tel:<%= location.service_center_phone.replace(/[^0-9]/g, '') %>" class="fw-bold text-decoration-none">
+                <%= location.service_center_phone %>
+              </a>
+            </div>
+          </div>
+        </div>
+        <% } %>
+        <% if (location.service_center_email) { %>
+        <div class="col-md-4">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-envelope-fill fs-4 text-info me-3"></i>
+            <div>
+              <small class="text-muted d-block">Email</small>
+              <a href="mailto:<%= location.service_center_email %>" class="fw-bold text-decoration-none">
+                <%= location.service_center_email %>
+              </a>
+            </div>
+          </div>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <h3 class="text-primary"><%= forklifts.length %></h3>
+          <small class="text-muted">Forklifts</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <h3 class="text-success"><%= forklifts.filter(f => f.status === 'active').length %></h3>
+          <small class="text-muted">Active</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <h3 class="text-warning"><%= forklifts.filter(f => f.status === 'maintenance').length %></h3>
+          <small class="text-muted">In Maintenance</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <% const utilization = location.capacity ? Math.round((forklifts.length / location.capacity) * 100) : 0; %>
+          <h3 class="text-<%= utilization > 90 ? 'danger' : utilization > 70 ? 'warning' : 'info' %>"><%= utilization %>%</h3>
+          <small class="text-muted">Utilization</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forklifts at this location -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="bi bi-truck me-2"></i>Forklifts at <%= location.name %></h5>
+      <span class="badge bg-primary"><%= forklifts.length %> / <%= location.capacity %></span>
+    </div>
+    <div class="card-body p-0">
+      <% if (forklifts.length === 0) { %>
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-inbox fs-1"></i>
+          <p class="mt-2">No forklifts at this location</p>
+          <a href="/forklifts/new?location=<%= location.id %>" class="btn btn-primary mt-2">Add Forklift</a>
+        </div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 50px;"></th>
+                <th>ID</th>
+                <th>Model</th>
+                <th>Status</th>
+                <th>Hours</th>
+                <th>Risk</th>
+                <th>Next Service</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% forklifts.forEach(fl => { %>
+                <%
+                  // Determine thumbnail based on manufacturer and fuel type
+                  let thumbPath = '/images/forklifts/default-forklift.svg';
+                  const mfr = (fl.manufacturer || '').toLowerCase();
+                  const fuel = (fl.fuel_type || '').toLowerCase();
+
+                  if (mfr.includes('toyota')) {
+                    thumbPath = '/images/forklifts/toyota-forklift.svg';
+                  } else if (mfr.includes('crown')) {
+                    thumbPath = '/images/forklifts/crown-forklift.svg';
+                  } else if (mfr.includes('hyster')) {
+                    thumbPath = '/images/forklifts/hyster-forklift.svg';
+                  } else if (mfr.includes('yale')) {
+                    thumbPath = '/images/forklifts/yale-forklift.svg';
+                  } else if (mfr.includes('raymond')) {
+                    thumbPath = '/images/forklifts/raymond-forklift.svg';
+                  } else if (fuel === 'electric') {
+                    thumbPath = '/images/forklifts/electric-forklift.svg';
+                  } else if (fuel === 'propane') {
+                    thumbPath = '/images/forklifts/propane-forklift.svg';
+                  } else if (fuel === 'diesel') {
+                    thumbPath = '/images/forklifts/diesel-forklift.svg';
+                  }
+                %>
+                <tr>
+                  <td>
+                    <a href="/forklifts/<%= fl.id %>">
+                      <img src="<%= fl.image_url || thumbPath %>" alt="<%= fl.id %>" class="rounded" style="width: 40px; height: 32px; object-fit: contain; background: #f8f9fa;">
+                    </a>
+                  </td>
+                  <td>
+                    <a href="/forklifts/<%= fl.id %>" class="fw-bold"><%= fl.id %></a>
+                  </td>
+                  <td>
+                    <%= fl.model || '-' %>
+                    <% if (fl.manufacturer) { %>
+                      <small class="d-block text-muted"><%= fl.manufacturer %></small>
+                    <% } %>
+                  </td>
+                  <td>
+                    <span class="badge bg-<%= fl.status === 'active' ? 'success' : fl.status === 'maintenance' ? 'warning' : 'danger' %>">
+                      <%= (fl.status || 'unknown').replace('_', ' ').toUpperCase() %>
+                    </span>
+                  </td>
+                  <td><%= (fl.current_hours || 0).toLocaleString() %></td>
+                  <td>
+                    <span class="badge bg-<%= fl.risk_level === 'critical' || fl.risk_level === 'high' ? 'danger' : fl.risk_level === 'medium' ? 'warning' : 'success' %>">
+                      <%= (fl.risk_level || 'low').toUpperCase() %>
+                    </span>
+                  </td>
+                  <td>
+                    <% if (fl.next_service_date) { %>
+                      <% const isOverdue = new Date(fl.next_service_date) <= new Date(); %>
+                      <span class="<%= isOverdue ? 'text-danger fw-bold' : '' %>">
+                        <%= new Date(fl.next_service_date).toLocaleDateString() %>
+                      </span>
+                    <% } else { %>
+                      <span class="text-muted">-</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm">
+                      <a href="/forklifts/<%= fl.id %>" class="btn btn-outline-primary" title="View">
+                        <i class="bi bi-eye"></i>
+                      </a>
+                      <a href="/maintenance/new?forklift=<%= fl.id %>" class="btn btn-outline-info" title="Maintenance">
+                        <i class="bi bi-wrench"></i>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

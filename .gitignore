@@ -1,0 +1,14 @@
+﻿node_modules/
+npm-debug.log*
+.env
+.env.local
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Database files (will be recreated on deploy)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+nul

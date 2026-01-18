@@ -1,0 +1,144 @@
+<div class="container-fluid">
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/maintenance">Maintenance</a></li>
+      <li class="breadcrumb-item active">Log Maintenance</li>
+    </ol>
+  </nav>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-wrench me-2"></i>Log Maintenance Record</h5>
+        </div>
+        <div class="card-body">
+          <form id="maintenanceForm">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Forklift <span class="text-danger">*</span></label>
+                <select class="form-select" name="forklift_id" required>
+                  <option value="">Select Forklift</option>
+                  <% forklifts.forEach(fl => { %>
+                    <option value="<%= fl.id %>" <%= selectedForkliftId === fl.id ? 'selected' : '' %>>
+                      <%= fl.id %> - <%= fl.model || 'Unknown' %> (<%= fl.location_name || 'No location' %>)
+                    </option>
+                  <% }) %>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Type <span class="text-danger">*</span></label>
+                <select class="form-select" name="type" required>
+                  <option value="routine">Routine Maintenance</option>
+                  <option value="repair">Repair</option>
+                  <option value="inspection">Inspection</option>
+                  <option value="emergency">Emergency</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Service Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" name="service_date" required
+                       value="<%= new Date().toISOString().split('T')[0] %>">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Next Service Date</label>
+                <input type="date" class="form-control" name="next_service_date">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Technician</label>
+                <input type="text" class="form-control" name="technician" placeholder="Technician name">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Cost</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control" name="cost" min="0" step="0.01" value="0">
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Hours at Service</label>
+                <input type="number" class="form-control" name="hours_at_service" min="0" step="0.1"
+                       placeholder="Current hour meter reading">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Status</label>
+                <select class="form-select" name="status">
+                  <option value="completed">Completed</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="scheduled">Scheduled</option>
+                </select>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="description" rows="3"
+                          placeholder="Describe the work performed..."></textarea>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Parts Replaced</label>
+                <input type="text" class="form-control" name="parts_replaced"
+                       placeholder="e.g., Oil filter, Hydraulic hose, Brake pads">
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex justify-content-between">
+              <a href="/maintenance" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Cancel
+              </a>
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg"></i> Save Record
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('maintenanceForm');
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+
+    // Convert numeric fields
+    if (data.cost) data.cost = parseFloat(data.cost);
+    if (data.hours_at_service) data.hours_at_service = parseFloat(data.hours_at_service);
+
+    try {
+      const response = await fetch('/api/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showToast('Maintenance record saved successfully', 'success');
+        setTimeout(() => {
+          window.location.href = `/forklifts/${data.forklift_id}`;
+        }, 1000);
+      } else {
+        showToast(result.error || 'Failed to save record', 'danger');
+      }
+    } catch (error) {
+      showToast('Error saving maintenance record', 'danger');
+    }
+  });
+});
+</script>

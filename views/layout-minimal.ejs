@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Fleet Manager</title>
+
+  <!-- Google Fonts - Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+      min-height: 100vh;
+    }
+
+    .share-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.5rem 0;
+      margin-bottom: 2rem;
+    }
+
+    .share-header .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .share-header .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+
+    .share-header .logo-text {
+      font-weight: 600;
+      font-size: 1.25rem;
+    }
+
+    .share-meta {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    .share-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .share-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 1rem 2rem;
+    }
+
+    .share-footer {
+      text-align: center;
+      padding: 2rem;
+      color: #64748b;
+      font-size: 0.85rem;
+      margin-top: 2rem;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .share-footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    .share-footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Card styles */
+    .glass-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: #f8fafc;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-header h5 {
+      margin: 0;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .card-body {
+      padding: 1.5rem;
+    }
+
+    /* Stat cards */
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .stat-card.danger { border-left: 4px solid #ef4444; }
+    .stat-card.warning { border-left: 4px solid #f59e0b; }
+    .stat-card.success { border-left: 4px solid #10b981; }
+    .stat-card.primary { border-left: 4px solid #667eea; }
+
+    .stat-card h3 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-card p {
+      color: #64748b;
+      margin: 0;
+      font-size: 0.85rem;
+    }
+
+    /* Status badges */
+    .badge-status {
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-critical { background: #fee2e2; color: #dc2626; }
+    .badge-warning { background: #fef3c7; color: #d97706; }
+    .badge-ok { background: #d1fae5; color: #059669; }
+
+    /* Table styles */
+    .table {
+      margin-bottom: 0;
+    }
+
+    .table th {
+      background: #f8fafc;
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: #64748b;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .table td {
+      vertical-align: middle;
+      padding: 0.75rem;
+    }
+
+    /* Expired/Not Found pages */
+    .error-page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .error-page i {
+      font-size: 5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .error-page h2 {
+      color: #1e293b;
+      margin-bottom: 0.75rem;
+    }
+
+    .error-page p {
+      color: #64748b;
+      max-width: 400px;
+    }
+  </style>
+</head>
+<body>
+  <header class="share-header">
+    <div class="container-fluid">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="logo">
+          <div class="logo-icon">
+            <i class="bi bi-truck"></i>
+          </div>
+          <span class="logo-text">Fleet Manager</span>
+        </div>
+        <% if (typeof meta !== 'undefined' && meta) { %>
+        <div class="share-meta">
+          <div class="share-meta-item">
+            <i class="bi bi-calendar3"></i>
+            <span>Created <%= new Date(meta.createdAt).toLocaleDateString() %></span>
+          </div>
+          <% if (meta.expiresAt) { %>
+          <div class="share-meta-item">
+            <i class="bi bi-clock"></i>
+            <span>Expires <%= new Date(meta.expiresAt).toLocaleDateString() %></span>
+          </div>
+          <% } %>
+          <div class="share-meta-item">
+            <i class="bi bi-eye"></i>
+            <span><%= meta.viewCount %> views</span>
+          </div>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </header>
+
+  <main class="share-container">
+    <%- body %>
+  </main>
+
+  <footer class="share-footer">
+    <p>This report was generated by Fleet Manager Predictive Maintenance System.</p>
+    <p>Data is a snapshot from the time of sharing and may not reflect current status.</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

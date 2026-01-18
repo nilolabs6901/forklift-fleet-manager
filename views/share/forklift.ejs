@@ -1,0 +1,161 @@
+<% const forklift = report.forklift; %>
+<% const prediction = report.prediction; %>
+<% const componentHealth = report.componentHealth; %>
+
+<h1 class="h3 mb-4"><%= meta.title %></h1>
+
+<div class="row g-4">
+  <!-- Forklift Details -->
+  <div class="col-lg-4">
+    <div class="glass-card mb-4">
+      <div class="card-header">
+        <h5><i class="bi bi-info-circle me-2"></i>Equipment Details</h5>
+      </div>
+      <div class="card-body">
+        <table class="table table-borderless mb-0">
+          <tr>
+            <th class="text-muted" style="width: 40%;">Unit ID</th>
+            <td class="text-end fw-bold"><%= forklift.id %></td>
+          </tr>
+          <tr>
+            <th class="text-muted">Model</th>
+            <td class="text-end"><%= forklift.model || '-' %></td>
+          </tr>
+          <tr>
+            <th class="text-muted">Manufacturer</th>
+            <td class="text-end"><%= forklift.manufacturer || '-' %></td>
+          </tr>
+          <tr>
+            <th class="text-muted">Serial Number</th>
+            <td class="text-end"><%= forklift.serial_number || '-' %></td>
+          </tr>
+          <tr>
+            <th class="text-muted">Year</th>
+            <td class="text-end"><%= forklift.year || '-' %></td>
+          </tr>
+          <tr>
+            <th class="text-muted">Fuel Type</th>
+            <td class="text-end text-capitalize"><%= forklift.fuel_type || '-' %></td>
+          </tr>
+          <tr>
+            <th class="text-muted">Current Hours</th>
+            <td class="text-end fw-bold"><%= forklift.current_hours ? forklift.current_hours.toLocaleString() : '-' %></td>
+          </tr>
+          <tr>
+            <th class="text-muted">Status</th>
+            <td class="text-end">
+              <span class="badge bg-<%= forklift.status === 'active' ? 'success' : forklift.status === 'maintenance' ? 'warning' : 'danger' %>">
+                <%= (forklift.status || 'unknown').toUpperCase() %>
+              </span>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <% if (prediction) { %>
+    <div class="glass-card">
+      <div class="card-header">
+        <h5><i class="bi bi-shield-exclamation me-2"></i>Risk Assessment</h5>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <div class="d-flex justify-content-between mb-1">
+            <span>Urgency Score</span>
+            <span class="fw-bold"><%= prediction.urgencyScore || 0 %>/100</span>
+          </div>
+          <div class="progress" style="height: 10px;">
+            <div class="progress-bar bg-<%= prediction.urgencyScore >= 50 ? 'danger' : prediction.urgencyScore >= 30 ? 'warning' : 'success' %>"
+                 style="width: <%= prediction.urgencyScore || 0 %>%"></div>
+          </div>
+        </div>
+        <div class="text-center">
+          <span class="badge-status badge-<%= prediction.overallStatus || 'ok' %>" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            <%= (prediction.overallStatus || 'ok').toUpperCase() %>
+          </span>
+        </div>
+      </div>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- Predictions & Component Health -->
+  <div class="col-lg-8">
+    <% if (prediction && prediction.predictions && prediction.predictions.length > 0) { %>
+    <div class="glass-card mb-4">
+      <div class="card-header">
+        <h5><i class="bi bi-cpu me-2"></i>Active Predictions</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+          <% prediction.predictions.forEach(pred => { %>
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h6 class="mb-1"><%= pred.title %></h6>
+                <p class="text-muted mb-1 small"><%= pred.description || '' %></p>
+                <span class="badge bg-secondary me-1"><%= pred.type.replace(/_/g, ' ') %></span>
+                <% if (pred.confidence) { %>
+                <span class="badge bg-info"><%= pred.confidence %>% confidence</span>
+                <% } %>
+              </div>
+              <span class="badge-status badge-<%= pred.urgency === 'critical' ? 'critical' : pred.urgency === 'high' ? 'warning' : 'ok' %>">
+                <%= pred.urgency.toUpperCase() %>
+              </span>
+            </div>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
+    <% if (componentHealth && componentHealth.components && componentHealth.components.length > 0) { %>
+    <div class="glass-card">
+      <div class="card-header">
+        <h5><i class="bi bi-gear-wide-connected me-2"></i>Component Health</h5>
+        <div>
+          <span class="badge bg-danger me-1"><%= componentHealth.criticalCount || 0 %> Critical</span>
+          <span class="badge bg-warning"><%= componentHealth.warningCount || 0 %> Warning</span>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Status</th>
+                <th>Life Used</th>
+                <th>Remaining Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% componentHealth.components.forEach(comp => { %>
+              <tr class="<%= comp.urgency === 'critical' ? 'table-danger' : comp.urgency === 'high' ? 'table-warning' : '' %>">
+                <td><strong><%= comp.component %></strong></td>
+                <td>
+                  <span class="badge bg-<%= comp.status === 'overdue' ? 'danger' : comp.status === 'due_soon' ? 'warning' : comp.status === 'monitor' ? 'info' : 'success' %>">
+                    <%= comp.status.replace(/_/g, ' ').toUpperCase() %>
+                  </span>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="progress flex-grow-1" style="height: 6px; width: 80px;">
+                      <div class="progress-bar bg-<%= comp.lifeUsedPercent >= 100 ? 'danger' : comp.lifeUsedPercent >= 80 ? 'warning' : 'success' %>"
+                           style="width: <%= Math.min(100, comp.lifeUsedPercent) %>%"></div>
+                    </div>
+                    <span class="small"><%= comp.lifeUsedPercent %>%</span>
+                  </div>
+                </td>
+                <td><%= comp.remainingHours.toLocaleString() %> hrs</td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <% } %>
+  </div>
+</div>

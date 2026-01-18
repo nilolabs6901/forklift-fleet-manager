@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run seed:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e:*)",
+      "Bash(taskkill:*)",
+      "Bash(where:*)",
+      "Bash(ngrok http:*)",
+      "Bash(node scripts/seed-enterprise.js:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(netstat:*)",
+      "Bash(ls:*)",
+      "Bash(dir \"C:\\\\Users\\\\kenne\\\\forklift-fleet-manager\\\\*.js\" /b)",
+      "Bash(ss:*)",
+      "Bash(wmic process:*)",
+      "Bash(cmd /c \"tasklist | findstr 22272\")",
+      "Bash(cmd //c \"taskkill /F /PID 22272\")",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

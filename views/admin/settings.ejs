@@ -1,0 +1,648 @@
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1">System Settings</h1>
+      <p class="text-muted mb-0">Configure system preferences and manage users</p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Settings Tabs -->
+    <div class="col-lg-3">
+      <div class="card glass-card">
+        <div class="card-body p-0">
+          <div class="nav flex-column nav-pills" id="settingsTabs" role="tablist">
+            <button class="nav-link active text-start rounded-0" data-bs-toggle="pill" data-bs-target="#general">
+              <i class="bi bi-gear me-2"></i>General
+            </button>
+            <button class="nav-link text-start rounded-0" data-bs-toggle="pill" data-bs-target="#alerts">
+              <i class="bi bi-bell me-2"></i>Alerts & Notifications
+            </button>
+            <button class="nav-link text-start rounded-0" data-bs-toggle="pill" data-bs-target="#maintenance">
+              <i class="bi bi-wrench me-2"></i>Maintenance
+            </button>
+            <button class="nav-link text-start rounded-0" data-bs-toggle="pill" data-bs-target="#users">
+              <i class="bi bi-people me-2"></i>User Management
+            </button>
+            <button class="nav-link text-start rounded-0" data-bs-toggle="pill" data-bs-target="#integrations">
+              <i class="bi bi-plug me-2"></i>Integrations
+            </button>
+            <button class="nav-link text-start rounded-0" data-bs-toggle="pill" data-bs-target="#backup">
+              <i class="bi bi-cloud-arrow-up me-2"></i>Backup & Export
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="col-lg-9">
+      <div class="tab-content">
+        <!-- General Settings -->
+        <div class="tab-pane fade show active" id="general">
+          <div class="card glass-card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-gear me-2"></i>General Settings</h5>
+            </div>
+            <div class="card-body">
+              <form id="generalSettingsForm">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Company Name</label>
+                    <input type="text" class="form-control" name="company_name"
+                           value="<%= settings.company_name || 'Fleet Management Inc.' %>">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Default Location</label>
+                    <select class="form-select" name="default_location">
+                      <option value="">Select default...</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Currency</label>
+                    <select class="form-select" name="currency">
+                      <option value="USD" <%= settings.currency === 'USD' ? 'selected' : '' %>>USD ($)</option>
+                      <option value="EUR" <%= settings.currency === 'EUR' ? 'selected' : '' %>>EUR (&euro;)</option>
+                      <option value="GBP" <%= settings.currency === 'GBP' ? 'selected' : '' %>>GBP (&pound;)</option>
+                      <option value="CAD" <%= settings.currency === 'CAD' ? 'selected' : '' %>>CAD ($)</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Date Format</label>
+                    <select class="form-select" name="date_format">
+                      <option value="MM/DD/YYYY" <%= settings.date_format === 'MM/DD/YYYY' ? 'selected' : '' %>>MM/DD/YYYY</option>
+                      <option value="DD/MM/YYYY" <%= settings.date_format === 'DD/MM/YYYY' ? 'selected' : '' %>>DD/MM/YYYY</option>
+                      <option value="YYYY-MM-DD" <%= settings.date_format === 'YYYY-MM-DD' ? 'selected' : '' %>>YYYY-MM-DD</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Timezone</label>
+                    <select class="form-select" name="timezone">
+                      <option value="America/New_York" <%= settings.timezone === 'America/New_York' ? 'selected' : '' %>>Eastern Time</option>
+                      <option value="America/Chicago" <%= settings.timezone === 'America/Chicago' ? 'selected' : '' %>>Central Time</option>
+                      <option value="America/Denver" <%= settings.timezone === 'America/Denver' ? 'selected' : '' %>>Mountain Time</option>
+                      <option value="America/Los_Angeles" <%= settings.timezone === 'America/Los_Angeles' ? 'selected' : '' %>>Pacific Time</option>
+                      <option value="UTC" <%= settings.timezone === 'UTC' ? 'selected' : '' %>>UTC</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Session Timeout (hours)</label>
+                    <input type="number" class="form-control" name="session_timeout"
+                           value="<%= settings.session_timeout || 8 %>" min="1" max="24">
+                  </div>
+                </div>
+                <div class="mt-4">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-2"></i>Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerts Settings -->
+        <div class="tab-pane fade" id="alerts">
+          <div class="card glass-card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-bell me-2"></i>Alert & Notification Settings</h5>
+            </div>
+            <div class="card-body">
+              <form id="alertSettingsForm">
+                <h6 class="mb-3">Email Notifications</h6>
+                <div class="mb-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="alert_email_enabled" id="alertEmailEnabled"
+                           <%= settings.alert_email_enabled === 'true' ? 'checked' : '' %>>
+                    <label class="form-check-label" for="alertEmailEnabled">Enable email notifications</label>
+                  </div>
+                </div>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-6">
+                    <label class="form-label">SMTP Server</label>
+                    <input type="text" class="form-control" name="smtp_host"
+                           value="<%= settings.smtp_host || '' %>" placeholder="smtp.example.com">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">SMTP Port</label>
+                    <input type="number" class="form-control" name="smtp_port"
+                           value="<%= settings.smtp_port || 587 %>">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">From Email</label>
+                    <input type="email" class="form-control" name="alert_from_email"
+                           value="<%= settings.alert_from_email || '' %>" placeholder="alerts@example.com">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Default Recipients</label>
+                    <input type="text" class="form-control" name="alert_default_recipients"
+                           value="<%= settings.alert_default_recipients || '' %>" placeholder="email1@example.com, email2@example.com">
+                  </div>
+                </div>
+
+                <hr>
+
+                <h6 class="mb-3">SMS Notifications</h6>
+                <div class="mb-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="alert_sms_enabled" id="alertSmsEnabled"
+                           <%= settings.alert_sms_enabled === 'true' ? 'checked' : '' %>>
+                    <label class="form-check-label" for="alertSmsEnabled">Enable SMS notifications (Twilio)</label>
+                  </div>
+                </div>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-6">
+                    <label class="form-label">Twilio Account SID</label>
+                    <input type="text" class="form-control" name="twilio_account_sid"
+                           value="<%= settings.twilio_account_sid || '' %>" placeholder="ACxxxxxxxx">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Twilio Auth Token</label>
+                    <input type="password" class="form-control" name="twilio_auth_token"
+                           value="<%= settings.twilio_auth_token ? '********' : '' %>" placeholder="Enter token">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">From Phone Number</label>
+                    <input type="text" class="form-control" name="twilio_from_number"
+                           value="<%= settings.twilio_from_number || '' %>" placeholder="+1234567890">
+                  </div>
+                </div>
+
+                <hr>
+
+                <h6 class="mb-3">Alert Thresholds</h6>
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Maintenance Due Warning (days)</label>
+                    <input type="number" class="form-control" name="maintenance_warning_days"
+                           value="<%= settings.maintenance_warning_days || 7 %>">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Risk Score Alert Threshold</label>
+                    <input type="number" class="form-control" name="risk_alert_threshold"
+                           value="<%= settings.risk_alert_threshold || 7 %>" min="1" max="10" step="0.5">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Hour Meter Jump Alert (hours)</label>
+                    <input type="number" class="form-control" name="hour_jump_threshold"
+                           value="<%= settings.hour_jump_threshold || 100 %>">
+                  </div>
+                </div>
+
+                <div class="mt-4">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-2"></i>Save Changes
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary ms-2" onclick="testEmailConfig()">
+                    <i class="bi bi-envelope me-2"></i>Test Email
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Maintenance Settings -->
+        <div class="tab-pane fade" id="maintenance">
+          <div class="card glass-card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-wrench me-2"></i>Maintenance Settings</h5>
+            </div>
+            <div class="card-body">
+              <form id="maintenanceSettingsForm">
+                <h6 class="mb-3">Default PM Intervals</h6>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-4">
+                    <label class="form-label">PM-A Interval (hours)</label>
+                    <input type="number" class="form-control" name="pm_a_interval"
+                           value="<%= settings.pm_a_interval || 250 %>">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">PM-B Interval (hours)</label>
+                    <input type="number" class="form-control" name="pm_b_interval"
+                           value="<%= settings.pm_b_interval || 500 %>">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">PM-C Interval (hours)</label>
+                    <input type="number" class="form-control" name="pm_c_interval"
+                           value="<%= settings.pm_c_interval || 1000 %>">
+                  </div>
+                </div>
+
+                <h6 class="mb-3">Cost Defaults</h6>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-4">
+                    <label class="form-label">Default Labor Rate ($/hr)</label>
+                    <input type="number" class="form-control" name="default_labor_rate"
+                           value="<%= settings.default_labor_rate || 85 %>" step="0.01">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Default Downtime Cost ($/hr)</label>
+                    <input type="number" class="form-control" name="default_downtime_cost"
+                           value="<%= settings.default_downtime_cost || 150 %>" step="0.01">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Replacement Cost Estimate ($)</label>
+                    <input type="number" class="form-control" name="default_replacement_cost"
+                           value="<%= settings.default_replacement_cost || 35000 %>">
+                  </div>
+                </div>
+
+                <h6 class="mb-3">Risk Assessment Weights</h6>
+                <div class="row g-3">
+                  <div class="col-md-2">
+                    <label class="form-label">Age (%)</label>
+                    <input type="number" class="form-control" name="risk_weight_age"
+                           value="<%= settings.risk_weight_age || 15 %>" min="0" max="100">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label">Hours (%)</label>
+                    <input type="number" class="form-control" name="risk_weight_hours"
+                           value="<%= settings.risk_weight_hours || 20 %>" min="0" max="100">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label">Maint Cost (%)</label>
+                    <input type="number" class="form-control" name="risk_weight_cost"
+                           value="<%= settings.risk_weight_cost || 25 %>" min="0" max="100">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label">Repairs (%)</label>
+                    <input type="number" class="form-control" name="risk_weight_repairs"
+                           value="<%= settings.risk_weight_repairs || 20 %>" min="0" max="100">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label">Downtime (%)</label>
+                    <input type="number" class="form-control" name="risk_weight_downtime"
+                           value="<%= settings.risk_weight_downtime || 20 %>" min="0" max="100">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label">Total</label>
+                    <input type="text" class="form-control" id="riskWeightTotal" readonly value="100%">
+                  </div>
+                </div>
+
+                <div class="mt-4">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-2"></i>Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Management -->
+        <div class="tab-pane fade" id="users">
+          <div class="card glass-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0"><i class="bi bi-people me-2"></i>User Management</h5>
+              <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newUserModal">
+                <i class="bi bi-plus-lg me-2"></i>Add User
+              </button>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Last Login</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% users.forEach(user => { %>
+                      <tr>
+                        <td class="fw-semibold"><%= user.first_name %> <%= user.last_name %></td>
+                        <td><%= user.email %></td>
+                        <td>
+                          <span class="badge bg-<%= user.role === 'admin' ? 'danger' : user.role === 'fleet_manager' ? 'primary' : user.role === 'technician' ? 'warning' : 'secondary' %>">
+                            <%= user.role %>
+                          </span>
+                        </td>
+                        <td>
+                          <% if (user.is_active) { %>
+                            <span class="badge bg-success">Active</span>
+                          <% } else { %>
+                            <span class="badge bg-secondary">Inactive</span>
+                          <% } %>
+                        </td>
+                        <td>
+                          <%= user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : 'Never' %>
+                        </td>
+                        <td>
+                          <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="editUser(<%= user.id %>)">
+                              <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-<%= user.is_active ? 'warning' : 'success' %>"
+                                    onclick="toggleUserStatus(<%= user.id %>, <%= user.is_active %>)">
+                              <i class="bi bi-<%= user.is_active ? 'pause' : 'play' %>"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Integrations -->
+        <div class="tab-pane fade" id="integrations">
+          <div class="card glass-card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-plug me-2"></i>Integrations & API</h5>
+            </div>
+            <div class="card-body">
+              <h6 class="mb-3">API Access</h6>
+              <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                API documentation is available at <code>/api/v1</code>. Use API keys for external integrations.
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label">API Base URL</label>
+                <div class="input-group">
+                  <input type="text" class="form-control" readonly value="<%= process.env.API_BASE_URL || 'http://localhost:3000/api/v1' %>">
+                  <button class="btn btn-outline-secondary" onclick="copyToClipboard(this.previousElementSibling.value)">
+                    <i class="bi bi-clipboard"></i>
+                  </button>
+                </div>
+              </div>
+
+              <h6 class="mb-3">Webhooks</h6>
+              <p class="text-muted">Configure webhooks to receive real-time notifications in external systems.</p>
+              <a href="/alerts" class="btn btn-outline-primary">
+                <i class="bi bi-link-45deg me-2"></i>Manage Webhooks
+              </a>
+
+              <hr class="my-4">
+
+              <h6 class="mb-3">External Integrations</h6>
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <div class="card h-100">
+                    <div class="card-body text-center">
+                      <i class="bi bi-file-earmark-spreadsheet text-success" style="font-size: 2rem;"></i>
+                      <h6 class="mt-2">Excel/CSV Import</h6>
+                      <p class="small text-muted mb-2">Import fleet data from spreadsheets</p>
+                      <button class="btn btn-sm btn-outline-success">Configure</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="card h-100">
+                    <div class="card-body text-center">
+                      <i class="bi bi-box text-primary" style="font-size: 2rem;"></i>
+                      <h6 class="mt-2">Telematics</h6>
+                      <p class="small text-muted mb-2">Connect to telematics providers</p>
+                      <button class="btn btn-sm btn-outline-primary">Configure</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="card h-100">
+                    <div class="card-body text-center">
+                      <i class="bi bi-currency-dollar text-warning" style="font-size: 2rem;"></i>
+                      <h6 class="mt-2">Accounting</h6>
+                      <p class="small text-muted mb-2">Sync with QuickBooks/Xero</p>
+                      <button class="btn btn-sm btn-outline-warning">Configure</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Backup & Export -->
+        <div class="tab-pane fade" id="backup">
+          <div class="card glass-card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="bi bi-cloud-arrow-up me-2"></i>Backup & Data Export</h5>
+            </div>
+            <div class="card-body">
+              <h6 class="mb-3">Database Backup</h6>
+              <p class="text-muted">Create a full backup of your fleet database.</p>
+              <div class="btn-group mb-4">
+                <button class="btn btn-primary" onclick="createBackup()">
+                  <i class="bi bi-download me-2"></i>Download Backup
+                </button>
+                <button class="btn btn-outline-secondary" onclick="scheduleBackup()">
+                  <i class="bi bi-calendar me-2"></i>Schedule Backup
+                </button>
+              </div>
+
+              <hr>
+
+              <h6 class="mb-3">Data Export</h6>
+              <p class="text-muted">Export specific data sets for reporting or analysis.</p>
+              <div class="row g-3">
+                <div class="col-md-3">
+                  <button class="btn btn-outline-primary w-100" onclick="exportData('forklifts')">
+                    <i class="bi bi-truck me-2"></i>Fleet Data
+                  </button>
+                </div>
+                <div class="col-md-3">
+                  <button class="btn btn-outline-primary w-100" onclick="exportData('maintenance')">
+                    <i class="bi bi-wrench me-2"></i>Maintenance
+                  </button>
+                </div>
+                <div class="col-md-3">
+                  <button class="btn btn-outline-primary w-100" onclick="exportData('downtime')">
+                    <i class="bi bi-clock me-2"></i>Downtime
+                  </button>
+                </div>
+                <div class="col-md-3">
+                  <button class="btn btn-outline-primary w-100" onclick="exportData('alerts')">
+                    <i class="bi bi-bell me-2"></i>Alerts
+                  </button>
+                </div>
+              </div>
+
+              <hr class="my-4">
+
+              <h6 class="mb-3">Audit Log</h6>
+              <p class="text-muted">Download system audit log for compliance reporting.</p>
+              <button class="btn btn-outline-secondary" onclick="exportAuditLog()">
+                <i class="bi bi-journal-text me-2"></i>Export Audit Log
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New User Modal -->
+<div class="modal fade" id="newUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h5 class="modal-title">Add New User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="newUserForm" onsubmit="createUser(event)">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">First Name</label>
+              <input type="text" class="form-control" name="first_name" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Last Name</label>
+              <input type="text" class="form-control" name="last_name" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" name="email" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Password</label>
+              <input type="password" class="form-control" name="password" required minlength="8">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Role</label>
+              <select class="form-select" name="role" required>
+                <option value="viewer">Viewer</option>
+                <option value="technician">Technician</option>
+                <option value="fleet_manager">Fleet Manager</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// Save settings forms
+document.querySelectorAll('form[id$="SettingsForm"]').forEach(form => {
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const data = {};
+    formData.forEach((value, key) => {
+      data[key] = value;
+    });
+
+    fetch('/api/v1/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+      if (result.success) {
+        showToast('Settings saved successfully', 'success');
+      } else {
+        showToast('Error: ' + result.error, 'danger');
+      }
+    });
+  });
+});
+
+function createUser(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    first_name: form.first_name.value,
+    last_name: form.last_name.value,
+    email: form.email.value,
+    password: form.password.value,
+    role: form.role.value
+  };
+
+  fetch('/api/v1/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.success) {
+      window.location.reload();
+    } else {
+      alert('Error: ' + result.error);
+    }
+  });
+}
+
+function toggleUserStatus(userId, currentStatus) {
+  fetch(`/api/v1/users/${userId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_active: !currentStatus })
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.success) {
+      window.location.reload();
+    } else {
+      alert('Error: ' + result.error);
+    }
+  });
+}
+
+function editUser(userId) {
+  // Navigate to user edit or open modal
+  alert('Edit user functionality - implement based on requirements');
+}
+
+function testEmailConfig() {
+  fetch('/api/v1/settings/test-email', { method: 'POST' })
+    .then(r => r.json())
+    .then(result => {
+      alert(result.success ? 'Test email sent successfully!' : 'Error: ' + result.error);
+    });
+}
+
+function createBackup() {
+  window.location.href = '/api/v1/settings/backup';
+}
+
+function scheduleBackup() {
+  alert('Backup scheduling - configure in system settings');
+}
+
+function exportData(type) {
+  window.location.href = `/api/v1/${type}/export?format=csv`;
+}
+
+function exportAuditLog() {
+  window.location.href = '/api/v1/audit/export?format=csv';
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Copied to clipboard', 'success');
+  });
+}
+
+function showToast(message, type) {
+  const toast = document.createElement('div');
+  toast.className = `toast align-items-center text-white bg-${type} border-0 show`;
+  toast.innerHTML = `
+    <div class="d-flex">
+      <div class="toast-body">${message}</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  `;
+  document.getElementById('toastContainer').appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+</script>

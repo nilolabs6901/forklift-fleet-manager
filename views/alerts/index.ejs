@@ -1,0 +1,382 @@
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <p class="text-secondary mb-0">Monitor and manage fleet alerts and notifications</p>
+  </div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newAlertModal">
+    <i class="bi bi-plus-lg"></i> Create Alert
+  </button>
+</div>
+
+<!-- Alert Stats -->
+<div class="row g-4 mb-4">
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card danger fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3><%= alertStats.critical_count || 0 %></h3>
+          <p>Critical Alerts</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-exclamation-octagon-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card warning fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3><%= alertStats.high_count || 0 %></h3>
+          <p>High Priority</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card info fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3><%= alertStats.medium_count || 0 %></h3>
+          <p>Medium Priority</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-info-circle-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card primary fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3><%= alertStats.low_count || 0 %></h3>
+          <p>Low Priority</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-bell-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+  <form method="GET" class="row g-3 align-items-end">
+    <div class="col-lg-3 col-md-6">
+      <label class="form-label">Forklift</label>
+      <select class="form-select" name="forklift">
+        <option value="">All Forklifts</option>
+        <% forklifts.forEach(fl => { %>
+          <option value="<%= fl.id %>" <%= filters.forklift === fl.id ? 'selected' : '' %>><%= fl.id %> - <%= fl.model || 'Unknown' %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="col-lg-2 col-md-6">
+      <label class="form-label">Severity</label>
+      <select class="form-select" name="severity">
+        <option value="">All Severities</option>
+        <option value="critical" <%= filters.severity === 'critical' ? 'selected' : '' %>>Critical</option>
+        <option value="high" <%= filters.severity === 'high' ? 'selected' : '' %>>High</option>
+        <option value="medium" <%= filters.severity === 'medium' ? 'selected' : '' %>>Medium</option>
+        <option value="low" <%= filters.severity === 'low' ? 'selected' : '' %>>Low</option>
+      </select>
+    </div>
+    <div class="col-lg-2 col-md-6">
+      <label class="form-label">Status</label>
+      <select class="form-select" name="resolved">
+        <option value="">All Status</option>
+        <option value="false" <%= filters.resolved === 'false' ? 'selected' : '' %>>Active</option>
+        <option value="true" <%= filters.resolved === 'true' ? 'selected' : '' %>>Resolved</option>
+      </select>
+    </div>
+    <div class="col-lg-5 col-md-12">
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-funnel"></i> Apply Filters
+        </button>
+        <a href="/alerts" class="btn btn-outline-secondary">
+          <i class="bi bi-x-lg"></i> Clear
+        </a>
+        <% const activeCount = alerts.filter(a => !a.is_resolved).length; %>
+        <% if (activeCount > 0) { %>
+          <button type="button" class="btn btn-success ms-auto" id="resolveAllBtn">
+            <i class="bi bi-check-all"></i> Resolve All (<%= activeCount %>)
+          </button>
+        <% } %>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Alerts List -->
+<div class="glass-card">
+  <div class="card-header">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-primary rounded-pill"><%= alerts.length %></span>
+      <span>alerts found</span>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <% if (alerts.length === 0) { %>
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <i class="bi bi-check-circle"></i>
+        </div>
+        <h5>All Clear!</h5>
+        <p>No alerts match your current filters.</p>
+        <a href="/alerts" class="btn btn-outline-primary">View All Alerts</a>
+      </div>
+    <% } else { %>
+      <div class="alert-list">
+        <% alerts.forEach(alert => { %>
+          <div class="alert-item severity-<%= alert.severity %> <%= alert.is_resolved ? 'resolved' : '' %>">
+            <div class="alert-icon">
+              <i class="bi bi-<%= alert.severity === 'critical' ? 'exclamation-octagon-fill' : alert.severity === 'high' ? 'exclamation-triangle-fill' : alert.severity === 'medium' ? 'info-circle-fill' : 'bell-fill' %>"></i>
+            </div>
+            <div class="alert-content">
+              <h6 class="<%= alert.is_resolved ? 'text-decoration-line-through text-muted' : '' %>">
+                <%= alert.title %>
+              </h6>
+              <% if (alert.message) { %>
+                <p class="<%= alert.is_resolved ? 'text-muted' : '' %>"><%= alert.message %></p>
+              <% } %>
+              <div class="alert-meta">
+                <% if (alert.forklift_id) { %>
+                  <span>
+                    <i class="bi bi-truck me-1"></i>
+                    <a href="/forklifts/<%= alert.forklift_id %>"><%= alert.forklift_id %></a>
+                    <% if (alert.location_name) { %> - <%= alert.location_name %><% } %>
+                  </span>
+                <% } %>
+                <span><i class="bi bi-tag me-1"></i><%= alert.type.replace(/_/g, ' ') %></span>
+                <span><i class="bi bi-clock me-1"></i><%= new Date(alert.created_at).toLocaleString() %></span>
+                <%
+                  // Parse context_data to check for invoice number
+                  let contextData = null;
+                  try {
+                    if (alert.context_data) {
+                      contextData = JSON.parse(alert.context_data);
+                    }
+                  } catch (e) {}
+                %>
+                <% if (contextData && contextData.invoice_number) { %>
+                  <a href="/api/v1/invoices/<%= contextData.invoice_number %>" target="_blank" class="invoice-link" title="View Invoice PDF">
+                    <i class="bi bi-file-pdf me-1 text-danger"></i><%= contextData.invoice_number %>
+                  </a>
+                <% } %>
+                <% if (alert.is_resolved) { %>
+                  <span class="text-success">
+                    <i class="bi bi-check-circle me-1"></i>Resolved
+                    <% if (alert.resolved_by) { %> by <%= alert.resolved_by %><% } %>
+                  </span>
+                <% } %>
+              </div>
+            </div>
+            <div class="alert-actions">
+              <% if (!alert.is_resolved) { %>
+                <button class="btn btn-sm btn-success resolve-alert" data-id="<%= alert.id %>" title="Resolve Alert">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+              <% } else { %>
+                <button class="btn btn-sm btn-outline-warning unresolve-alert" data-id="<%= alert.id %>" title="Reopen Alert">
+                  <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+              <% } %>
+              <button class="btn btn-sm btn-outline-danger delete-alert" data-id="<%= alert.id %>" title="Delete Alert">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<!-- New Alert Modal -->
+<div class="modal fade" id="newAlertModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-bell-fill me-2"></i>Create New Alert
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="newAlertForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Forklift (Optional)</label>
+            <select class="form-select" name="forklift_id">
+              <option value="">None - General Fleet Alert</option>
+              <% forklifts.forEach(fl => { %>
+                <option value="<%= fl.id %>"><%= fl.id %> - <%= fl.model || 'Unknown' %></option>
+              <% }) %>
+            </select>
+            <small class="form-text text-muted">Leave empty for general fleet alerts</small>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Type <span class="text-danger">*</span></label>
+              <select class="form-select" name="type" required>
+                <option value="maintenance">Maintenance</option>
+                <option value="safety">Safety</option>
+                <option value="operational">Operational</option>
+                <option value="inspection">Inspection</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Severity <span class="text-danger">*</span></label>
+              <select class="form-select" name="severity" required>
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Title <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="title" required placeholder="Brief alert title">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Message</label>
+            <textarea class="form-control" name="message" rows="3" placeholder="Detailed description of the alert..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>Create Alert
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  .alert-item.resolved {
+    opacity: 0.6;
+    background: rgba(0, 0, 0, 0.02);
+  }
+  .alert-item.resolved .alert-icon {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-muted);
+  }
+  .alert-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .invoice-link {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, #fff5f5 0%, #fee2e2 100%);
+    color: #dc2626;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid rgba(220, 38, 38, 0.2);
+    transition: all 0.2s ease;
+  }
+  .invoice-link:hover {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #b91c1c;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.2);
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Create new alert
+  const newAlertForm = document.getElementById('newAlertForm');
+  newAlertForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+
+    if (!data.forklift_id) delete data.forklift_id;
+
+    try {
+      const response = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        showToast('Alert created successfully', 'success');
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showToast(result.error || 'Failed to create alert', 'danger');
+      }
+    } catch (error) {
+      showToast('Error creating alert', 'danger');
+    }
+  });
+
+  // Unresolve alert
+  document.querySelectorAll('.unresolve-alert').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const id = this.dataset.id;
+      try {
+        const response = await fetch(`/api/alerts/${id}/unresolve`, { method: 'PUT' });
+        const result = await response.json();
+        if (result.success) {
+          showToast('Alert reopened', 'info');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          showToast(result.error || 'Failed to reopen alert', 'danger');
+        }
+      } catch (error) {
+        showToast('Error reopening alert', 'danger');
+      }
+    });
+  });
+
+  // Delete alert
+  document.querySelectorAll('.delete-alert').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      if (!confirm('Are you sure you want to delete this alert?')) return;
+      const id = this.dataset.id;
+      try {
+        const response = await fetch(`/api/alerts/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        if (result.success) {
+          showToast('Alert deleted', 'success');
+          this.closest('.alert-item').style.animation = 'fadeOut 0.3s ease forwards';
+          setTimeout(() => location.reload(), 500);
+        } else {
+          showToast(result.error || 'Failed to delete', 'danger');
+        }
+      } catch (error) {
+        showToast('Error deleting alert', 'danger');
+      }
+    });
+  });
+
+  // Resolve all visible
+  const resolveAllBtn = document.getElementById('resolveAllBtn');
+  if (resolveAllBtn) {
+    resolveAllBtn.addEventListener('click', async function() {
+      if (!confirm('Resolve all active alerts?')) return;
+      const alerts = document.querySelectorAll('.resolve-alert');
+      for (const btn of alerts) {
+        await fetch(`/api/alerts/${btn.dataset.id}/resolve`, { method: 'PUT' });
+      }
+      showToast('All alerts resolved', 'success');
+      setTimeout(() => location.reload(), 1000);
+    });
+  }
+});
+</script>

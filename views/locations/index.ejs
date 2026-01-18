@@ -1,0 +1,245 @@
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Locations</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newLocationModal">
+      <i class="bi bi-plus-lg"></i> Add Location
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body text-center">
+          <h3 class="text-primary"><%= locationStats.total_locations || 0 %></h3>
+          <small class="text-muted">Total Locations</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body text-center">
+          <h3 class="text-success"><%= locationStats.total_forklifts || 0 %></h3>
+          <small class="text-muted">Total Forklifts</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body text-center">
+          <h3 class="text-info"><%= locationStats.total_capacity || 0 %></h3>
+          <small class="text-muted">Total Capacity</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Locations Grid -->
+  <% if (locations.length === 0) { %>
+    <div class="card">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-geo-alt fs-1 text-muted"></i>
+        <p class="mt-2 text-muted">No locations found</p>
+        <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#newLocationModal">
+          Add First Location
+        </button>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="row g-4">
+      <% locations.forEach(loc => { %>
+        <div class="col-md-6 col-lg-4">
+          <div class="card h-100 location-card">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                  <h5 class="card-title mb-1">
+                    <a href="/locations/<%= loc.id %>" class="text-decoration-none"><%= loc.name %></a>
+                  </h5>
+                  <span class="badge bg-secondary"><%= loc.type %></span>
+                </div>
+                <div class="dropdown">
+                  <button class="btn btn-link text-muted" data-bs-toggle="dropdown">
+                    <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/locations/<%= loc.id %>"><i class="bi bi-eye me-2"></i>View</a></li>
+                    <li><a class="dropdown-item edit-location" href="#" data-id="<%= loc.id %>" data-name="<%= loc.name %>" data-address="<%= loc.address || '' %>" data-type="<%= loc.type %>" data-capacity="<%= loc.capacity %>"><i class="bi bi-pencil me-2"></i>Edit</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger delete-location" href="#" data-id="<%= loc.id %>"><i class="bi bi-trash me-2"></i>Delete</a></li>
+                  </ul>
+                </div>
+              </div>
+
+              <% if (loc.address) { %>
+                <p class="text-muted small mb-3">
+                  <i class="bi bi-geo me-1"></i><%= loc.address %>
+                </p>
+              <% } %>
+
+              <div class="row text-center">
+                <div class="col-6">
+                  <div class="border-end">
+                    <h4 class="mb-0"><%= loc.forklift_count || 0 %></h4>
+                    <small class="text-muted">Forklifts</small>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <h4 class="mb-0"><%= loc.capacity || 0 %></h4>
+                  <small class="text-muted">Capacity</small>
+                </div>
+              </div>
+
+              <% const utilization = loc.capacity ? Math.round((loc.forklift_count / loc.capacity) * 100) : 0; %>
+              <div class="mt-3">
+                <div class="d-flex justify-content-between mb-1">
+                  <small>Utilization</small>
+                  <small><%= utilization %>%</small>
+                </div>
+                <div class="progress" style="height: 6px;">
+                  <div class="progress-bar bg-<%= utilization > 90 ? 'danger' : utilization > 70 ? 'warning' : 'success' %>"
+                       style="width: <%= utilization %>%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer bg-transparent">
+              <a href="/locations/<%= loc.id %>" class="btn btn-outline-primary btn-sm w-100">
+                View Details <i class="bi bi-arrow-right"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<!-- New/Edit Location Modal -->
+<div class="modal fade" id="newLocationModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="locationModalTitle">Add Location</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="locationForm">
+        <input type="hidden" name="id" id="locationId">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="name" id="locationName" required placeholder="e.g., Warehouse A">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Address</label>
+            <input type="text" class="form-control" name="address" id="locationAddress" placeholder="Street address">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Type</label>
+            <select class="form-select" name="type" id="locationType">
+              <option value="warehouse">Warehouse</option>
+              <option value="distribution">Distribution Center</option>
+              <option value="manufacturing">Manufacturing</option>
+              <option value="retail">Retail</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Capacity</label>
+            <input type="number" class="form-control" name="capacity" id="locationCapacity" min="1" value="50" placeholder="Max forklifts">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="locationSubmitBtn">Add Location</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const modal = document.getElementById('newLocationModal');
+  const form = document.getElementById('locationForm');
+  const modalTitle = document.getElementById('locationModalTitle');
+  const submitBtn = document.getElementById('locationSubmitBtn');
+  let editingId = null;
+
+  // Reset modal on close
+  modal.addEventListener('hidden.bs.modal', function() {
+    form.reset();
+    editingId = null;
+    modalTitle.textContent = 'Add Location';
+    submitBtn.textContent = 'Add Location';
+  });
+
+  // Edit location
+  document.querySelectorAll('.edit-location').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      editingId = this.dataset.id;
+      document.getElementById('locationName').value = this.dataset.name;
+      document.getElementById('locationAddress').value = this.dataset.address;
+      document.getElementById('locationType').value = this.dataset.type;
+      document.getElementById('locationCapacity').value = this.dataset.capacity;
+      modalTitle.textContent = 'Edit Location';
+      submitBtn.textContent = 'Save Changes';
+      new bootstrap.Modal(modal).show();
+    });
+  });
+
+  // Submit form
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+
+    if (data.capacity) data.capacity = parseInt(data.capacity);
+
+    try {
+      const url = editingId ? `/api/locations/${editingId}` : '/api/locations';
+      const method = editingId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showToast(editingId ? 'Location updated' : 'Location added', 'success');
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showToast(result.error || 'Operation failed', 'danger');
+      }
+    } catch (error) {
+      showToast('Error saving location', 'danger');
+    }
+  });
+
+  // Delete location
+  document.querySelectorAll('.delete-location').forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+      e.preventDefault();
+      if (!confirm('Delete this location? This cannot be undone.')) return;
+
+      const id = this.dataset.id;
+      try {
+        const response = await fetch(`/api/locations/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+
+        if (result.success) {
+          showToast('Location deleted', 'success');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          showToast(result.error || 'Failed to delete', 'danger');
+        }
+      } catch (error) {
+        showToast('Error deleting location', 'danger');
+      }
+    });
+  });
+});
+</script>

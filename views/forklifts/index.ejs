@@ -1,0 +1,191 @@
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <p class="text-secondary mb-0">Manage and monitor your entire forklift fleet</p>
+  </div>
+  <a href="/forklifts/new" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Add Forklift
+  </a>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+  <form method="GET" class="row g-3 align-items-end">
+    <div class="col-lg-3 col-md-6">
+      <label class="form-label">Search</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" class="form-control" name="search" placeholder="ID, Model, Manufacturer..." value="<%= filters.search || '' %>">
+      </div>
+    </div>
+    <div class="col-lg-2 col-md-6">
+      <label class="form-label">Status</label>
+      <select class="form-select" name="status">
+        <option value="">All Status</option>
+        <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>>Active</option>
+        <option value="maintenance" <%= filters.status === 'maintenance' ? 'selected' : '' %>>In Maintenance</option>
+        <option value="out_of_service" <%= filters.status === 'out_of_service' ? 'selected' : '' %>>Out of Service</option>
+      </select>
+    </div>
+    <div class="col-lg-2 col-md-6">
+      <label class="form-label">Location</label>
+      <select class="form-select" name="location">
+        <option value="">All Locations</option>
+        <% locations.forEach(loc => { %>
+          <option value="<%= loc.id %>" <%= filters.location == loc.id ? 'selected' : '' %>><%= loc.name %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="col-lg-2 col-md-6">
+      <label class="form-label">Risk Level</label>
+      <select class="form-select" name="risk">
+        <option value="">All Risks</option>
+        <option value="high" <%= filters.risk === 'high' ? 'selected' : '' %>>High Risk</option>
+        <option value="medium" <%= filters.risk === 'medium' ? 'selected' : '' %>>Medium Risk</option>
+        <option value="low" <%= filters.risk === 'low' ? 'selected' : '' %>>Low Risk</option>
+      </select>
+    </div>
+    <div class="col-lg-3 col-md-12">
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-grow-1">
+          <i class="bi bi-funnel"></i> Apply Filters
+        </button>
+        <a href="/forklifts" class="btn btn-outline-secondary">
+          <i class="bi bi-x-lg"></i>
+        </a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Results Table -->
+<div class="table-container">
+  <div class="card-header">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-primary rounded-pill"><%= forklifts.length %></span>
+      <span>forklifts found</span>
+    </div>
+  </div>
+
+  <% if (forklifts.length === 0) { %>
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <i class="bi bi-inbox"></i>
+      </div>
+      <h5>No Forklifts Found</h5>
+      <p>Try adjusting your filters or add a new forklift to get started.</p>
+      <a href="/forklifts/new" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Add First Forklift
+      </a>
+    </div>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table modern-table mb-0">
+        <thead>
+          <tr>
+            <th style="width: 60px;"></th>
+            <th>ID</th>
+            <th>Model</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Hours</th>
+            <th>Risk</th>
+            <th>Next Service</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% forklifts.forEach(fl => { %>
+            <%
+              // Determine thumbnail based on manufacturer and fuel type
+              let thumbPath = '/images/forklifts/default-forklift.svg';
+              const mfr = (fl.manufacturer || '').toLowerCase();
+              const fuel = (fl.fuel_type || '').toLowerCase();
+
+              if (mfr.includes('toyota')) {
+                thumbPath = '/images/forklifts/toyota-forklift.svg';
+              } else if (mfr.includes('crown')) {
+                thumbPath = '/images/forklifts/crown-forklift.svg';
+              } else if (mfr.includes('hyster')) {
+                thumbPath = '/images/forklifts/hyster-forklift.svg';
+              } else if (mfr.includes('yale')) {
+                thumbPath = '/images/forklifts/yale-forklift.svg';
+              } else if (mfr.includes('raymond')) {
+                thumbPath = '/images/forklifts/raymond-forklift.svg';
+              } else if (fuel === 'electric') {
+                thumbPath = '/images/forklifts/electric-forklift.svg';
+              } else if (fuel === 'propane') {
+                thumbPath = '/images/forklifts/propane-forklift.svg';
+              } else if (fuel === 'diesel') {
+                thumbPath = '/images/forklifts/diesel-forklift.svg';
+              }
+            %>
+            <tr>
+              <td>
+                <a href="/forklifts/<%= fl.id %>">
+                  <img src="<%= fl.image_url || thumbPath %>" alt="<%= fl.id %>" class="rounded" style="width: 48px; height: 38px; object-fit: contain; background: #f8f9fa;">
+                </a>
+              </td>
+              <td>
+                <a href="/forklifts/<%= fl.id %>" class="table-id"><%= fl.id %></a>
+              </td>
+              <td class="table-model">
+                <%= fl.model || '-' %>
+                <% if (fl.manufacturer) { %>
+                  <small><%= fl.manufacturer %></small>
+                <% } %>
+              </td>
+              <td>
+                <% if (fl.location_name) { %>
+                  <a href="/locations/<%= fl.location_id %>" class="text-decoration-none">
+                    <i class="bi bi-geo-alt text-muted me-1"></i><%= fl.location_name %>
+                  </a>
+                <% } else { %>
+                  <span class="text-muted">-</span>
+                <% } %>
+              </td>
+              <td>
+                <span class="badge badge-status-<%= fl.status %>">
+                  <%= fl.status === 'out_of_service' ? 'OUT OF SERVICE' : fl.status.toUpperCase() %>
+                </span>
+              </td>
+              <td>
+                <span class="fw-semibold"><%= (fl.current_hours || 0).toLocaleString() %></span>
+                <small class="text-muted d-block">hours</small>
+              </td>
+              <td>
+                <span class="badge badge-risk-<%= fl.risk_level || 'low' %>">
+                  <%= (fl.risk_level || 'low').toUpperCase() %>
+                </span>
+              </td>
+              <td>
+                <% if (fl.next_service_date) { %>
+                  <% const isOverdue = new Date(fl.next_service_date) <= new Date(); %>
+                  <span class="<%= isOverdue ? 'text-danger fw-bold' : '' %>">
+                    <% if (isOverdue) { %><i class="bi bi-exclamation-circle me-1"></i><% } %>
+                    <%= new Date(fl.next_service_date).toLocaleDateString() %>
+                  </span>
+                <% } else { %>
+                  <span class="text-muted">Not scheduled</span>
+                <% } %>
+              </td>
+              <td>
+                <div class="table-actions">
+                  <a href="/forklifts/<%= fl.id %>" class="btn btn-sm btn-primary" title="View Details">
+                    <i class="bi bi-eye"></i>
+                  </a>
+                  <a href="/forklifts/<%= fl.id %>/edit" class="btn btn-sm btn-outline-secondary" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  <a href="/maintenance/new?forklift=<%= fl.id %>" class="btn btn-sm btn-outline-primary" title="Log Maintenance">
+                    <i class="bi bi-wrench"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>

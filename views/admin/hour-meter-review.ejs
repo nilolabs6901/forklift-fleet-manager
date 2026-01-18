@@ -1,0 +1,496 @@
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1">Hour Meter Review</h1>
+      <p class="text-muted mb-0">Review and correct flagged hour meter readings</p>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-outline-success" onclick="approveAllPending()">
+        <i class="bi bi-check-all me-2"></i>Approve All Valid
+      </button>
+      <button class="btn btn-outline-secondary" onclick="window.print()">
+        <i class="bi bi-printer me-2"></i>Print
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-danger bg-opacity-10 text-danger">
+              <i class="bi bi-flag-fill"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Flagged Readings</h6>
+              <h2 class="mb-0"><%= flaggedReadings.length %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+              <i class="bi bi-arrow-down-circle"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Backward Readings</h6>
+              <h2 class="mb-0"><%= flaggedReadings.filter(r => r.flag_reason && r.flag_reason.toLowerCase().includes('backward')).length %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-info bg-opacity-10 text-info">
+              <i class="bi bi-arrow-up-circle"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Large Jumps</h6>
+              <h2 class="mb-0"><%= flaggedReadings.filter(r => r.flag_reason && r.flag_reason.toLowerCase().includes('large')).length %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-success bg-opacity-10 text-success">
+              <i class="bi bi-speedometer2"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Fleet Avg Daily Hours</h6>
+              <h2 class="mb-0"><%= (summary.average_daily_hours || 0).toFixed(1) %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Anomaly Type Legend -->
+  <div class="card glass-card mb-4">
+    <div class="card-body py-2">
+      <div class="d-flex flex-wrap gap-4">
+        <div>
+          <span class="badge bg-warning text-dark me-2">Backward</span>
+          <small class="text-muted">Reading decreased from previous</small>
+        </div>
+        <div>
+          <span class="badge bg-info me-2">Large Jump</span>
+          <small class="text-muted">Increase > 100 hours since last reading</small>
+        </div>
+        <div>
+          <span class="badge bg-danger me-2">Impossible</span>
+          <small class="text-muted">> 24 hours/day average</small>
+        </div>
+        <div>
+          <span class="badge bg-secondary me-2">Suspicious</span>
+          <small class="text-muted">Unusual pattern detected</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flagged Readings Table -->
+  <div class="card glass-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Flagged Hour Meter Readings</h5>
+      <div class="d-flex gap-2">
+        <select class="form-select form-select-sm" id="anomalyFilter" onchange="filterReadings()">
+          <option value="">All Types</option>
+          <option value="backward">Backward Only</option>
+          <option value="large_jump">Large Jumps Only</option>
+          <option value="impossible">Impossible Only</option>
+        </select>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <% if (flaggedReadings.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0" id="flaggedTable">
+            <thead>
+              <tr>
+                <th>
+                  <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll()">
+                </th>
+                <th>Date</th>
+                <th>Unit ID</th>
+                <th>Previous</th>
+                <th>Recorded</th>
+                <th>Difference</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% flaggedReadings.forEach(reading => { %>
+                <%
+                  const diff = reading.reading_delta || (reading.reading - (reading.previous_reading || 0));
+                  const diffClass = diff < 0 ? 'text-danger' : diff > 100 ? 'text-warning' : '';
+                  const flagReason = reading.flag_reason || 'unknown';
+                  const typeClass = flagReason.toLowerCase().includes('backward') ? 'warning' :
+                                   flagReason.toLowerCase().includes('large') ? 'info' :
+                                   flagReason.toLowerCase().includes('impossible') ? 'danger' : 'secondary';
+                %>
+                <tr data-type="<%= flagReason %>" data-id="<%= reading.id %>">
+                  <td>
+                    <input type="checkbox" class="form-check-input reading-checkbox" value="<%= reading.id %>">
+                  </td>
+                  <td><%= new Date(reading.recorded_at).toLocaleDateString() %></td>
+                  <td>
+                    <a href="/forklifts/<%= reading.forklift_id %>" class="fw-semibold">
+                      <%= reading.forklift_id %>
+                    </a>
+                  </td>
+                  <td><%= (reading.previous_reading || 0).toLocaleString() %></td>
+                  <td class="fw-bold"><%= reading.reading.toLocaleString() %></td>
+                  <td class="<%= diffClass %>">
+                    <% if (diff < 0) { %>
+                      <i class="bi bi-arrow-down"></i>
+                    <% } else { %>
+                      <i class="bi bi-arrow-up"></i>
+                    <% } %>
+                    <%= Math.abs(diff).toLocaleString() %>
+                  </td>
+                  <td>
+                    <span class="badge bg-<%= typeClass %> <%= typeClass === 'warning' ? 'text-dark' : '' %>" title="<%= flagReason %>">
+                      <%= flagReason.split(' ').slice(0, 2).join(' ') %>
+                    </span>
+                  </td>
+                  <td>
+                    <% if (reading.is_corrected) { %>
+                      <span class="badge bg-success">Corrected</span>
+                    <% } else if (reading.is_validated) { %>
+                      <span class="badge bg-info">Verified</span>
+                    <% } else { %>
+                      <span class="badge bg-warning text-dark">Pending</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm">
+                      <button class="btn btn-outline-success" onclick="approveReading(<%= reading.id %>)" title="Approve as correct">
+                        <i class="bi bi-check-lg"></i>
+                      </button>
+                      <button class="btn btn-outline-primary" onclick="showCorrectModal(<%= reading.id %>, <%= reading.reading %>, <%= reading.previous_reading || 0 %>)" title="Correct value">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button class="btn btn-outline-danger" onclick="deleteReading(<%= reading.id %>)" title="Delete reading">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="text-center py-5">
+          <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+          <h5 class="mt-3">No Flagged Readings</h5>
+          <p class="text-muted mb-0">All hour meter readings are within normal parameters</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Fleet Hour Meter Summary -->
+  <div class="row mt-4">
+    <div class="col-lg-8">
+      <div class="card glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Fleet Hour Meter Trends</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="hourTrendsChart" height="300"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Data Quality Metrics</h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-4">
+            <div class="d-flex justify-content-between mb-1">
+              <span>Data Accuracy</span>
+              <span class="fw-bold"><%= summary.total_readings ? Math.round(((summary.total_readings - flaggedReadings.length) / summary.total_readings) * 100) : 100 %>%</span>
+            </div>
+            <div class="progress" style="height: 10px;">
+              <div class="progress-bar bg-success" style="width: <%= summary.total_readings ? ((summary.total_readings - flaggedReadings.length) / summary.total_readings) * 100 : 100 %>%"></div>
+            </div>
+          </div>
+
+          <div class="list-group list-group-flush">
+            <div class="list-group-item d-flex justify-content-between px-0">
+              <span>Total Readings (30 days)</span>
+              <span class="fw-bold"><%= summary.total_readings || 0 %></span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between px-0">
+              <span>Flagged Readings</span>
+              <span class="badge bg-warning text-dark"><%= flaggedReadings.length %></span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between px-0">
+              <span>Corrected This Month</span>
+              <span class="badge bg-success"><%= summary.corrected_count || 0 %></span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between px-0">
+              <span>Units Reporting</span>
+              <span class="fw-bold"><%= summary.units_reporting || 0 %></span>
+            </div>
+          </div>
+
+          <div class="alert alert-info mt-3 mb-0">
+            <i class="bi bi-lightbulb me-2"></i>
+            <small>Hour meter readings should be recorded at consistent intervals for accurate analytics.</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Correct Reading Modal -->
+<div class="modal fade" id="correctModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h5 class="modal-title">Correct Hour Meter Reading</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="correctForm" onsubmit="submitCorrection(event)">
+        <input type="hidden" name="reading_id" id="correctReadingId">
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Correcting a reading will update the forklift's current hours and flag the original as corrected.
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Previous Reading</label>
+            <input type="number" class="form-control" id="previousReading" readonly>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Original Reading (Flagged)</label>
+            <input type="number" class="form-control" id="originalReading" readonly>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Corrected Value</label>
+            <input type="number" class="form-control" name="corrected_hours" id="correctedHours" required min="0">
+            <small class="text-muted">Enter the correct hour meter value</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Correction Reason</label>
+            <select class="form-select" name="reason" required>
+              <option value="">Select reason...</option>
+              <option value="data_entry_error">Data Entry Error</option>
+              <option value="meter_replacement">Meter Replacement</option>
+              <option value="meter_reset">Meter Reset/Rollover</option>
+              <option value="system_glitch">System Glitch</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea class="form-control" name="notes" rows="2" placeholder="Additional details..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Apply Correction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Hour Trends Chart
+  const trendsCtx = document.getElementById('hourTrendsChart');
+  if (trendsCtx) {
+    // Generate sample trend data
+    const labels = [];
+    const avgHours = [];
+    const flaggedCounts = [];
+
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      avgHours.push(Math.round(<%= summary.average_daily_hours || 6 %> + (Math.random() - 0.5) * 2));
+      flaggedCounts.push(Math.floor(Math.random() * 3));
+    }
+
+    new Chart(trendsCtx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Avg Daily Hours',
+          data: avgHours,
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13, 110, 253, 0.1)',
+          fill: true,
+          tension: 0.3,
+          yAxisID: 'y'
+        }, {
+          label: 'Flagged Readings',
+          data: flaggedCounts,
+          borderColor: '#dc3545',
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          yAxisID: 'y1'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            position: 'left',
+            title: { display: true, text: 'Hours' }
+          },
+          y1: {
+            beginAtZero: true,
+            position: 'right',
+            title: { display: true, text: 'Flagged Count' },
+            grid: { drawOnChartArea: false }
+          }
+        }
+      }
+    });
+  }
+});
+
+function filterReadings() {
+  const filter = document.getElementById('anomalyFilter').value;
+  const rows = document.querySelectorAll('#flaggedTable tbody tr');
+
+  rows.forEach(row => {
+    if (!filter || row.dataset.type === filter) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+}
+
+function toggleSelectAll() {
+  const selectAll = document.getElementById('selectAll').checked;
+  document.querySelectorAll('.reading-checkbox').forEach(cb => {
+    cb.checked = selectAll;
+  });
+}
+
+function showCorrectModal(readingId, originalHours, previousHours) {
+  document.getElementById('correctReadingId').value = readingId;
+  document.getElementById('originalReading').value = originalHours;
+  document.getElementById('previousReading').value = previousHours;
+  document.getElementById('correctedHours').value = previousHours > 0 ? previousHours : originalHours;
+
+  const modal = new bootstrap.Modal(document.getElementById('correctModal'));
+  modal.show();
+}
+
+function submitCorrection(e) {
+  e.preventDefault();
+  const form = e.target;
+  const readingId = form.reading_id.value;
+  const data = {
+    corrected_hours: parseInt(form.corrected_hours.value),
+    reason: form.reason.value,
+    notes: form.notes.value
+  };
+
+  fetch(`/api/v1/forklifts/hour-readings/${readingId}/correct`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.success) {
+      window.location.reload();
+    } else {
+      alert('Error: ' + result.error);
+    }
+  });
+}
+
+function approveReading(readingId) {
+  if (!confirm('Approve this reading as correct?')) return;
+
+  fetch(`/api/v1/forklifts/hour-readings/${readingId}/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.success) {
+      window.location.reload();
+    } else {
+      alert('Error: ' + result.error);
+    }
+  });
+}
+
+function deleteReading(readingId) {
+  if (!confirm('Delete this reading? This cannot be undone.')) return;
+
+  fetch(`/api/v1/forklifts/hour-readings/${readingId}`, {
+    method: 'DELETE'
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.success) {
+      window.location.reload();
+    } else {
+      alert('Error: ' + result.error);
+    }
+  });
+}
+
+function approveAllPending() {
+  const selectedIds = [];
+  document.querySelectorAll('.reading-checkbox:checked').forEach(cb => {
+    selectedIds.push(parseInt(cb.value));
+  });
+
+  if (selectedIds.length === 0) {
+    alert('Please select readings to approve');
+    return;
+  }
+
+  if (!confirm(`Approve ${selectedIds.length} reading(s) as correct?`)) return;
+
+  Promise.all(selectedIds.map(id =>
+    fetch(`/api/v1/forklifts/hour-readings/${id}/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }).then(r => r.json())
+  ))
+  .then(results => {
+    const success = results.filter(r => r.success).length;
+    alert(`${success} of ${selectedIds.length} readings approved`);
+    window.location.reload();
+  });
+}
+</script>

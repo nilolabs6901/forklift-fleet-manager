@@ -1,0 +1,361 @@
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Reports & Analytics</h1>
+    <div class="btn-group">
+      <button class="btn btn-outline-secondary" onclick="window.print()">
+        <i class="bi bi-printer"></i> Print
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white">
+        <div class="card-body">
+          <h6 class="card-subtitle mb-2 opacity-75">Total Fleet</h6>
+          <h2 class="card-title mb-0"><%= forkliftStats.total || 0 %></h2>
+          <small>Forklifts</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body">
+          <h6 class="card-subtitle mb-2 opacity-75">Active Rate</h6>
+          <h2 class="card-title mb-0">
+            <%= forkliftStats.total ? Math.round((forkliftStats.active / forkliftStats.total) * 100) : 0 %>%
+          </h2>
+          <small><%= forkliftStats.active || 0 %> active units</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-dark">
+        <div class="card-body">
+          <h6 class="card-subtitle mb-2 opacity-75">Active Alerts</h6>
+          <h2 class="card-title mb-0"><%= alertStats.active_alerts || 0 %></h2>
+          <small><%= alertStats.critical_count || 0 %> critical</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-info text-white">
+        <div class="card-body">
+          <h6 class="card-subtitle mb-2 opacity-75">Total Maintenance Cost</h6>
+          <h2 class="card-title mb-0">$<%= (maintenanceStats.total_cost || 0).toLocaleString() %></h2>
+          <small>All time</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row 1 -->
+  <div class="row g-4 mb-4">
+    <div class="col-lg-8">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Monthly Maintenance Costs</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="monthlyCostsChart" height="300"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Fleet Status</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="fleetStatusChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row 2 -->
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-wrench me-2"></i>Maintenance by Type</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="maintenanceTypeChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Alerts by Severity</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="alertSeverityChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Risk Analysis -->
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Risk Level Distribution</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="riskLevelChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Forklifts by Location</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="locationChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Tables -->
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-table me-2"></i>Maintenance Cost Summary</h5>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-striped mb-0">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Count</th>
+                <th>Total Cost</th>
+                <th>Avg Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% typeBreakdown.forEach(item => { %>
+                <tr>
+                  <td><span class="badge bg-secondary"><%= item.type %></span></td>
+                  <td><%= item.count %></td>
+                  <td>$<%= (item.total_cost || 0).toLocaleString() %></td>
+                  <td>$<%= item.count ? Math.round(item.total_cost / item.count).toLocaleString() : 0 %></td>
+                </tr>
+              <% }) %>
+              <% if (typeBreakdown.length === 0) { %>
+                <tr><td colspan="4" class="text-center text-muted">No data</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-building me-2"></i>Location Summary</h5>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-striped mb-0">
+            <thead>
+              <tr>
+                <th>Location</th>
+                <th>Forklifts</th>
+                <th>Capacity</th>
+                <th>Utilization</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% locations.forEach(loc => { %>
+                <% const util = loc.capacity ? Math.round((loc.forklift_count / loc.capacity) * 100) : 0; %>
+                <tr>
+                  <td><a href="/locations/<%= loc.id %>"><%= loc.name %></a></td>
+                  <td><%= loc.forklift_count || 0 %></td>
+                  <td><%= loc.capacity %></td>
+                  <td>
+                    <div class="progress" style="height: 20px;">
+                      <div class="progress-bar bg-<%= util > 90 ? 'danger' : util > 70 ? 'warning' : 'success' %>"
+                           style="width: <%= util %>%"><%= util %>%</div>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+              <% if (locations.length === 0) { %>
+                <tr><td colspan="4" class="text-center text-muted">No data</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Monthly Costs Chart
+  const monthlyCostsCtx = document.getElementById('monthlyCostsChart');
+  if (monthlyCostsCtx) {
+    const monthlyData = <%- JSON.stringify(monthlyCosts) %>;
+    new Chart(monthlyCostsCtx, {
+      type: 'line',
+      data: {
+        labels: monthlyData.map(d => d.month),
+        datasets: [{
+          label: 'Maintenance Cost ($)',
+          data: monthlyData.map(d => d.total_cost || 0),
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13, 110, 253, 0.1)',
+          fill: true,
+          tension: 0.3
+        }, {
+          label: 'Service Count',
+          data: monthlyData.map(d => d.count),
+          borderColor: '#198754',
+          backgroundColor: 'transparent',
+          yAxisID: 'y1',
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Cost ($)' }
+          },
+          y1: {
+            beginAtZero: true,
+            position: 'right',
+            title: { display: true, text: 'Count' },
+            grid: { drawOnChartArea: false }
+          }
+        }
+      }
+    });
+  }
+
+  // Fleet Status Chart
+  const fleetStatusCtx = document.getElementById('fleetStatusChart');
+  if (fleetStatusCtx) {
+    new Chart(fleetStatusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Active', 'In Maintenance', 'Out of Service'],
+        datasets: [{
+          data: [<%= forkliftStats.active || 0 %>, <%= forkliftStats.in_maintenance || 0 %>, <%= forkliftStats.out_of_service || 0 %>],
+          backgroundColor: ['#198754', '#ffc107', '#dc3545']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  }
+
+  // Maintenance Type Chart
+  const maintenanceTypeCtx = document.getElementById('maintenanceTypeChart');
+  if (maintenanceTypeCtx) {
+    const typeData = <%- JSON.stringify(typeBreakdown) %>;
+    new Chart(maintenanceTypeCtx, {
+      type: 'bar',
+      data: {
+        labels: typeData.map(d => d.type),
+        datasets: [{
+          label: 'Count',
+          data: typeData.map(d => d.count),
+          backgroundColor: '#0d6efd'
+        }, {
+          label: 'Total Cost ($)',
+          data: typeData.map(d => d.total_cost || 0),
+          backgroundColor: '#6c757d'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } }
+      }
+    });
+  }
+
+  // Alert Severity Chart
+  const alertSeverityCtx = document.getElementById('alertSeverityChart');
+  if (alertSeverityCtx) {
+    const severityData = <%- JSON.stringify(severityBreakdown) %>;
+    new Chart(alertSeverityCtx, {
+      type: 'pie',
+      data: {
+        labels: severityData.map(d => d.severity.charAt(0).toUpperCase() + d.severity.slice(1)),
+        datasets: [{
+          data: severityData.map(d => d.count),
+          backgroundColor: severityData.map(d =>
+            d.severity === 'critical' ? '#dc3545' :
+            d.severity === 'high' ? '#ffc107' :
+            d.severity === 'medium' ? '#17a2b8' : '#6c757d'
+          )
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  }
+
+  // Risk Level Chart
+  const riskLevelCtx = document.getElementById('riskLevelChart');
+  if (riskLevelCtx) {
+    new Chart(riskLevelCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['High Risk', 'Medium Risk', 'Low Risk'],
+        datasets: [{
+          data: [<%= forkliftStats.high_risk || 0 %>, <%= forkliftStats.medium_risk || 0 %>, <%= forkliftStats.low_risk || 0 %>],
+          backgroundColor: ['#dc3545', '#ffc107', '#198754']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  }
+
+  // Location Chart
+  const locationCtx = document.getElementById('locationChart');
+  if (locationCtx) {
+    const locationData = <%- JSON.stringify(locations) %>;
+    new Chart(locationCtx, {
+      type: 'bar',
+      data: {
+        labels: locationData.map(d => d.name),
+        datasets: [{
+          label: 'Forklifts',
+          data: locationData.map(d => d.forklift_count || 0),
+          backgroundColor: '#0d6efd'
+        }, {
+          label: 'Capacity',
+          data: locationData.map(d => d.capacity),
+          backgroundColor: 'rgba(13, 110, 253, 0.3)'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  }
+});
+</script>

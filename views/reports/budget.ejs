@@ -1,0 +1,423 @@
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1">Budget Planning</h1>
+      <p class="text-muted mb-0">Fiscal Year <%= fiscalYear %> - Replacement & Maintenance Budget</p>
+    </div>
+    <div class="btn-group">
+      <form class="d-flex me-2" method="GET">
+        <select class="form-select form-select-sm" name="year" onchange="this.form.submit()">
+          <% for (let y = new Date().getFullYear(); y <= new Date().getFullYear() + 5; y++) { %>
+            <option value="<%= y %>" <%= y === fiscalYear ? 'selected' : '' %>>FY <%= y %></option>
+          <% } %>
+        </select>
+      </form>
+      <button class="btn btn-outline-secondary" onclick="window.print()">
+        <i class="bi bi-printer me-2"></i>Print
+      </button>
+      <button class="btn btn-outline-primary" onclick="exportBudget()">
+        <i class="bi bi-download me-2"></i>Export
+      </button>
+    </div>
+  </div>
+
+  <!-- Budget Summary -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+              <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Total Budget Required</h6>
+              <h2 class="mb-0">$<%= ((replacementRecommendations.total_investment || 0) + (maintenanceStats.projected_annual || maintenanceStats.yearly_cost || 0)).toLocaleString() %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-danger bg-opacity-10 text-danger">
+              <i class="bi bi-arrow-repeat"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Replacement Budget</h6>
+              <h2 class="mb-0">$<%= (replacementRecommendations.total_investment || 0).toLocaleString() %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+              <i class="bi bi-wrench-adjustable"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Maintenance Budget</h6>
+              <h2 class="mb-0">$<%= (maintenanceStats.projected_annual || maintenanceStats.yearly_cost || 0).toLocaleString() %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-success bg-opacity-10 text-success">
+              <i class="bi bi-graph-down-arrow"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Projected Savings</h6>
+              <h2 class="mb-0 text-success">$<%= (replacementRecommendations.projected_savings || 0).toLocaleString() %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Budget Breakdown Chart -->
+    <div class="col-lg-8">
+      <div class="card glass-card h-100">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Budget Allocation</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <canvas id="budgetPieChart" height="250"></canvas>
+            </div>
+            <div class="col-md-6">
+              <h6 class="mb-3">Budget Breakdown</h6>
+              <div class="mb-3">
+                <div class="d-flex justify-content-between mb-1">
+                  <span>Equipment Replacement</span>
+                  <span class="fw-bold">$<%= (replacementRecommendations.total_investment || 0).toLocaleString() %></span>
+                </div>
+                <div class="progress" style="height: 8px;">
+                  <div class="progress-bar bg-danger" style="width: <%= Math.min(100, ((replacementRecommendations.total_investment || 0) / ((replacementRecommendations.total_investment || 0) + (maintenanceStats.yearly_cost || 0) + (downtimeStats.total_cost || 0) + (rentalStats.total_cost || 0)) * 100)) %>%"></div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="d-flex justify-content-between mb-1">
+                  <span>Preventive Maintenance</span>
+                  <span class="fw-bold">$<%= ((maintenanceStats.yearly_cost || 0) * 0.6).toLocaleString() %></span>
+                </div>
+                <div class="progress" style="height: 8px;">
+                  <div class="progress-bar bg-success" style="width: 30%"></div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="d-flex justify-content-between mb-1">
+                  <span>Corrective Maintenance</span>
+                  <span class="fw-bold">$<%= ((maintenanceStats.yearly_cost || 0) * 0.4).toLocaleString() %></span>
+                </div>
+                <div class="progress" style="height: 8px;">
+                  <div class="progress-bar bg-warning" style="width: 20%"></div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="d-flex justify-content-between mb-1">
+                  <span>Rental Contingency</span>
+                  <span class="fw-bold">$<%= (rentalStats.total_cost || 15000).toLocaleString() %></span>
+                </div>
+                <div class="progress" style="height: 8px;">
+                  <div class="progress-bar bg-info" style="width: 10%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="col-lg-4">
+      <div class="card glass-card h-100">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-clipboard-data me-2"></i>Key Metrics</h5>
+        </div>
+        <div class="card-body">
+          <div class="list-group list-group-flush">
+            <div class="list-group-item d-flex justify-content-between px-0">
+              <span>Units to Replace</span>
+              <span class="badge bg-danger"><%= replacementRecommendations.units_to_replace?.length || 0 %></span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between px-0">
+              <span>Avg Replacement Cost</span>
+              <span class="fw-bold">$<%= replacementRecommendations.units_to_replace?.length ? Math.round((replacementRecommendations.total_investment || 0) / replacementRecommendations.units_to_replace.length).toLocaleString() : '35,000' %></span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between px-0">
+              <span>Current Fleet Size</span>
+              <span class="fw-bold"><%= maintenanceStats.total_units || 150 %></span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between px-0">
+              <span>Avg Maintenance/Unit</span>
+              <span class="fw-bold">$<%= maintenanceStats.total_units ? Math.round((maintenanceStats.yearly_cost || 0) / maintenanceStats.total_units).toLocaleString() : '0' %>/yr</span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between px-0">
+              <span>Downtime Cost (Est)</span>
+              <span class="fw-bold">$<%= (downtimeStats.estimated_cost || 0).toLocaleString() %></span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between px-0">
+              <span>ROI on Replacements</span>
+              <span class="badge bg-success"><%= replacementRecommendations.roi_months || 24 %> months</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Replacement Schedule -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card glass-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Recommended Replacement Schedule</h5>
+          <div>
+            <span class="badge bg-danger me-2">Q1: Immediate</span>
+            <span class="badge bg-warning text-dark me-2">Q2-Q3: High Priority</span>
+            <span class="badge bg-info">Q4: Planned</span>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <% if (replacementRecommendations.units_to_replace && replacementRecommendations.units_to_replace.length > 0) { %>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Priority</th>
+                    <th>Unit ID</th>
+                    <th>Make/Model</th>
+                    <th>Current Risk</th>
+                    <th>Monthly Cost</th>
+                    <th>Replacement Cost</th>
+                    <th>Est. Savings/Year</th>
+                    <th>Recommended Quarter</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% replacementRecommendations.units_to_replace.forEach((unit, idx) => { %>
+                    <%
+                      const quarter = idx < 3 ? 'Q1' : idx < 7 ? 'Q2' : idx < 12 ? 'Q3' : 'Q4';
+                      const quarterClass = idx < 3 ? 'danger' : idx < 7 ? 'warning' : idx < 12 ? 'info' : 'secondary';
+                      const monthlySavings = ((unit.monthly_cost || 800) - 200); // Assume new unit costs ~$200/mo
+                      const yearlySavings = monthlySavings * 12;
+                    %>
+                    <tr>
+                      <td>
+                        <span class="badge bg-<%= quarterClass %> <%= quarterClass === 'warning' ? 'text-dark' : '' %>">
+                          #<%= idx + 1 %>
+                        </span>
+                      </td>
+                      <td>
+                        <a href="/forklifts/<%= unit.id %>" class="fw-semibold">
+                          <%= unit.unit_id || 'FL-' + unit.id %>
+                        </a>
+                      </td>
+                      <td><%= unit.make || 'Toyota' %> <%= unit.model || '8FGU25' %></td>
+                      <td>
+                        <span class="badge bg-<%= unit.risk_score >= 8 ? 'danger' : 'warning' %>">
+                          <%= unit.risk_score?.toFixed(1) || '7.5' %>
+                        </span>
+                      </td>
+                      <td>$<%= (unit.monthly_cost || 800).toLocaleString() %></td>
+                      <td>$<%= (unit.replacement_cost || 35000).toLocaleString() %></td>
+                      <td class="text-success">+$<%= yearlySavings.toLocaleString() %></td>
+                      <td>
+                        <span class="badge bg-<%= quarterClass %> <%= quarterClass === 'warning' ? 'text-dark' : '' %>">
+                          <%= quarter %> <%= fiscalYear %>
+                        </span>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+                <tfoot>
+                  <tr class="table-light fw-bold">
+                    <td colspan="4">Total</td>
+                    <td>$<%= (replacementRecommendations.units_to_replace.reduce((sum, u) => sum + (u.monthly_cost || 800), 0)).toLocaleString() %>/mo</td>
+                    <td>$<%= (replacementRecommendations.total_investment || 0).toLocaleString() %></td>
+                    <td class="text-success">+$<%= (replacementRecommendations.projected_savings || 0).toLocaleString() %></td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="text-center py-5">
+              <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+              <p class="text-muted mt-3 mb-0">No replacements recommended for FY <%= fiscalYear %></p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quarterly Spending Projection -->
+  <div class="row mt-4">
+    <div class="col-lg-8">
+      <div class="card glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Quarterly Spending Projection</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="quarterlyChart" height="300"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Budget Recommendations</h5>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info mb-3">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Cost per Unit:</strong> Based on current fleet analysis, your average cost per forklift is
+            <strong>$<%= maintenanceStats.total_units ? Math.round(((maintenanceStats.yearly_cost || 0) + (downtimeStats.estimated_cost || 0) + (rentalStats.total_cost || 0)) / maintenanceStats.total_units / 12).toLocaleString() : '0' %>/month</strong>
+          </div>
+
+          <h6 class="mb-2">Recommendations:</h6>
+          <ul class="list-unstyled">
+            <li class="mb-2">
+              <i class="bi bi-check-circle text-success me-2"></i>
+              Prioritize Q1 replacements for immediate cost savings
+            </li>
+            <li class="mb-2">
+              <i class="bi bi-check-circle text-success me-2"></i>
+              Consider bulk purchasing for 5%+ discount
+            </li>
+            <li class="mb-2">
+              <i class="bi bi-check-circle text-success me-2"></i>
+              Increase PM frequency on high-risk units until replaced
+            </li>
+            <li class="mb-2">
+              <i class="bi bi-check-circle text-success me-2"></i>
+              Negotiate rental contracts for backup coverage
+            </li>
+          </ul>
+
+          <div class="mt-4">
+            <a href="/risk-analysis" class="btn btn-outline-primary w-100">
+              <i class="bi bi-shield-exclamation me-2"></i>View Risk Analysis
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Budget Pie Chart
+  const budgetPieCtx = document.getElementById('budgetPieChart');
+  if (budgetPieCtx) {
+    new Chart(budgetPieCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Replacement', 'Preventive Maint.', 'Corrective Maint.', 'Rental Contingency'],
+        datasets: [{
+          data: [
+            <%= replacementRecommendations.total_investment || 0 %>,
+            <%= (maintenanceStats.yearly_cost || 0) * 0.6 %>,
+            <%= (maintenanceStats.yearly_cost || 0) * 0.4 %>,
+            <%= rentalStats.total_cost || 15000 %>
+          ],
+          backgroundColor: ['#dc3545', '#198754', '#ffc107', '#0dcaf0']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        },
+        cutout: '50%'
+      }
+    });
+  }
+
+  // Quarterly Chart
+  const quarterlyCtx = document.getElementById('quarterlyChart');
+  if (quarterlyCtx) {
+    const replacementTotal = <%= replacementRecommendations.total_investment || 0 %>;
+    const maintenanceAnnual = <%= maintenanceStats.yearly_cost || 0 %>;
+
+    // Distribute costs across quarters
+    const q1Replacement = replacementTotal * 0.4; // 40% in Q1 (immediate)
+    const q2Replacement = replacementTotal * 0.3; // 30% in Q2
+    const q3Replacement = replacementTotal * 0.2; // 20% in Q3
+    const q4Replacement = replacementTotal * 0.1; // 10% in Q4
+
+    new Chart(quarterlyCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+        datasets: [{
+          label: 'Replacement',
+          data: [q1Replacement, q2Replacement, q3Replacement, q4Replacement],
+          backgroundColor: 'rgba(220, 53, 69, 0.8)'
+        }, {
+          label: 'Maintenance',
+          data: [maintenanceAnnual/4, maintenanceAnnual/4, maintenanceAnnual/4, maintenanceAnnual/4],
+          backgroundColor: 'rgba(25, 135, 84, 0.8)'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' }
+        },
+        scales: {
+          x: { stacked: true },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            ticks: {
+              callback: v => '$' + v.toLocaleString()
+            }
+          }
+        }
+      }
+    });
+  }
+});
+
+function exportBudget() {
+  // Generate CSV export
+  const data = [
+    ['Budget Report - FY <%= fiscalYear %>'],
+    [''],
+    ['Category', 'Amount'],
+    ['Total Budget Required', '$<%= ((replacementRecommendations.total_investment || 0) + (maintenanceStats.yearly_cost || 0)).toLocaleString() %>'],
+    ['Replacement Budget', '$<%= (replacementRecommendations.total_investment || 0).toLocaleString() %>'],
+    ['Maintenance Budget', '$<%= (maintenanceStats.yearly_cost || 0).toLocaleString() %>'],
+    ['Projected Savings', '$<%= (replacementRecommendations.projected_savings || 0).toLocaleString() %>'],
+    [''],
+    ['Units to Replace', '<%= replacementRecommendations.units_to_replace?.length || 0 %>']
+  ];
+
+  const csv = data.map(row => row.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'budget-report-fy<%= fiscalYear %>.csv';
+  a.click();
+}
+</script>

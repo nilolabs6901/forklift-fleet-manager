@@ -1,0 +1,560 @@
+<!-- Dashboard Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <p class="text-secondary mb-0">Welcome back! Here's your fleet overview.</p>
+  </div>
+  <a href="/forklifts/new" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Add Forklift
+  </a>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card primary fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3><%= forkliftStats.total || 0 %></h3>
+          <p>Total Forklifts</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-boxes"></i>
+        </div>
+      </div>
+      <div class="stat-card-footer">
+        <a href="/forklifts">View all forklifts <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card success fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3><%= forkliftStats.active || 0 %></h3>
+          <p>Active Units</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-check-circle-fill"></i>
+        </div>
+      </div>
+      <div class="stat-card-footer">
+        <a href="/forklifts?status=active">View active <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card warning fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3><%= alertStats.active_alerts || 0 %></h3>
+          <p>Active Alerts</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-bell-fill"></i>
+        </div>
+      </div>
+      <div class="stat-card-footer">
+        <a href="/alerts?resolved=false">View alerts <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card info fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3>$<%= (maintenanceStats.monthly_cost || 0).toLocaleString() %></h3>
+          <p>Monthly Maintenance</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-wallet2"></i>
+        </div>
+      </div>
+      <div class="stat-card-footer">
+        <a href="/reports">View reports <i class="bi bi-arrow-right"></i></a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Content Grid -->
+<div class="row g-4">
+  <!-- Recent Alerts -->
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="bi bi-bell-fill text-warning me-2"></i>Recent Alerts
+        </h5>
+        <a href="/alerts" class="btn btn-sm btn-outline-primary">View All</a>
+      </div>
+      <div class="card-body p-0">
+        <% if (recentAlerts.length === 0) { %>
+          <div class="empty-state py-5">
+            <div class="empty-state-icon">
+              <i class="bi bi-check-circle"></i>
+            </div>
+            <h5>All Clear!</h5>
+            <p class="text-muted mb-0">No active alerts at this time</p>
+          </div>
+        <% } else { %>
+          <div class="list-group list-group-flush">
+            <% recentAlerts.forEach(alert => { %>
+              <div class="list-group-item d-flex align-items-center py-3">
+                <span class="badge badge-severity-<%= alert.severity %> me-3">
+                  <%= alert.severity.toUpperCase() %>
+                </span>
+                <div class="flex-grow-1">
+                  <h6 class="mb-1 fw-semibold"><%= alert.title %></h6>
+                  <small class="text-muted">
+                    <% if (alert.forklift_id) { %>
+                      <a href="/forklifts/<%= alert.forklift_id %>" class="text-primary"><%= alert.forklift_id %></a> &bull;
+                    <% } %>
+                    <%= new Date(alert.created_at).toLocaleDateString() %>
+                  </small>
+                </div>
+                <button class="btn btn-sm btn-success resolve-alert" data-id="<%= alert.id %>" title="Resolve">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Maintenance Due -->
+  <div class="col-lg-6">
+    <div class="glass-card h-100">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="bi bi-tools text-info me-2"></i>Maintenance Due
+        </h5>
+        <a href="/maintenance/new" class="btn btn-sm btn-outline-primary">Log Maintenance</a>
+      </div>
+      <div class="card-body p-0">
+        <% if (maintenanceDue.length === 0) { %>
+          <div class="empty-state py-5">
+            <div class="empty-state-icon">
+              <i class="bi bi-calendar-check"></i>
+            </div>
+            <h5>All Caught Up!</h5>
+            <p class="text-muted mb-0">No maintenance due at this time</p>
+          </div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table mb-0">
+              <thead>
+                <tr>
+                  <th>Forklift</th>
+                  <th>Location</th>
+                  <th>Next Service</th>
+                  <th>Hours</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% maintenanceDue.forEach(fl => { %>
+                  <tr>
+                    <td>
+                      <a href="/forklifts/<%= fl.id %>" class="fw-bold text-primary"><%= fl.id %></a>
+                      <small class="d-block text-muted"><%= fl.model || '-' %></small>
+                    </td>
+                    <td><%= fl.location_name || '-' %></td>
+                    <td>
+                      <% if (fl.next_service_date) { %>
+                        <% const isOverdue = new Date(fl.next_service_date) <= new Date(); %>
+                        <span class="<%= isOverdue ? 'text-danger fw-bold' : '' %>">
+                          <% if (isOverdue) { %><i class="bi bi-exclamation-circle me-1"></i><% } %>
+                          <%= new Date(fl.next_service_date).toLocaleDateString() %>
+                        </span>
+                      <% } else { %>
+                        <span class="text-muted">Not scheduled</span>
+                      <% } %>
+                    </td>
+                    <td><%= (fl.current_hours || fl.operating_hours || 0).toLocaleString() %></td>
+                    <td>
+                      <a href="/maintenance/new?forklift=<%= fl.id %>" class="btn btn-sm btn-primary" title="Log Maintenance">
+                        <i class="bi bi-wrench"></i>
+                      </a>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Predictive Maintenance Section -->
+<div class="row g-4 mt-2">
+  <div class="col-12">
+    <div class="glass-card predictions-card">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="bi bi-cpu text-primary me-2"></i>Predictive Maintenance
+        </h5>
+        <a href="/predictions" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-graph-up me-1"></i>Full Analysis
+        </a>
+      </div>
+      <div class="card-body" id="predictionsContainer">
+        <div class="text-center py-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading predictions...</span>
+          </div>
+          <p class="text-muted mt-2 mb-0">Analyzing fleet data...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row g-4 mt-2">
+  <div class="col-lg-6">
+    <div class="chart-container">
+      <div class="chart-header">
+        <h5><i class="bi bi-pie-chart-fill me-2"></i>Fleet Status</h5>
+      </div>
+      <canvas id="fleetStatusChart" height="280"></canvas>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="chart-container">
+      <div class="chart-header">
+        <h5><i class="bi bi-bar-chart-fill me-2"></i>Forklifts by Location</h5>
+      </div>
+      <canvas id="locationChart" height="280"></canvas>
+    </div>
+  </div>
+</div>
+
+<style>
+.predictions-card .card-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+.predictions-card .card-header h5 {
+  color: white;
+}
+.predictions-card .card-header .btn-outline-primary {
+  color: white;
+  border-color: rgba(255,255,255,0.5);
+}
+.predictions-card .card-header .btn-outline-primary:hover {
+  background: rgba(255,255,255,0.2);
+  border-color: white;
+}
+.prediction-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.prediction-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+  border-radius: 12px;
+  border-left: 4px solid #667eea;
+  transition: all 0.2s ease;
+}
+.prediction-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.prediction-item.urgency-critical {
+  border-left-color: #ef4444;
+  background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);
+}
+.prediction-item.urgency-high {
+  border-left-color: #f59e0b;
+  background: linear-gradient(135deg, #fffbeb 0%, #fff 100%);
+}
+.prediction-item.urgency-medium {
+  border-left-color: #3b82f6;
+  background: linear-gradient(135deg, #eff6ff 0%, #fff 100%);
+}
+.prediction-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+.prediction-icon.critical {
+  background: linear-gradient(135deg, #fecaca 0%, #fee2e2 100%);
+  color: #dc2626;
+}
+.prediction-icon.high {
+  background: linear-gradient(135deg, #fed7aa 0%, #fef3c7 100%);
+  color: #d97706;
+}
+.prediction-icon.medium {
+  background: linear-gradient(135deg, #bfdbfe 0%, #dbeafe 100%);
+  color: #2563eb;
+}
+.prediction-content {
+  flex-grow: 1;
+  min-width: 0;
+}
+.prediction-content h6 {
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+.prediction-content p {
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+.prediction-meta {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: #888;
+}
+.prediction-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.confidence-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  font-weight: 600;
+}
+.predictions-summary {
+  display: flex;
+  gap: 2rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+.summary-stat {
+  text-align: center;
+}
+.summary-stat h4 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+}
+.summary-stat p {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0;
+}
+.summary-stat.critical h4 { color: #ef4444; }
+.summary-stat.warning h4 { color: #f59e0b; }
+.summary-stat.ok h4 { color: #10b981; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Load predictions
+  loadPredictions();
+
+  // Modern Chart.js options
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.font.size = 13;
+
+  // Fleet Status Chart - Doughnut
+  const statusCtx = document.getElementById('fleetStatusChart');
+  if (statusCtx) {
+    new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Active', 'In Maintenance', 'Out of Service'],
+        datasets: [{
+          data: [<%= forkliftStats.active || 0 %>, <%= forkliftStats.in_maintenance || 0 %>, <%= forkliftStats.out_of_service || 0 %>],
+          backgroundColor: [
+            'rgba(16, 185, 129, 0.85)',
+            'rgba(245, 158, 11, 0.85)',
+            'rgba(239, 68, 68, 0.85)'
+          ],
+          borderColor: [
+            'rgba(16, 185, 129, 1)',
+            'rgba(245, 158, 11, 1)',
+            'rgba(239, 68, 68, 1)'
+          ],
+          borderWidth: 2,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '65%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 20,
+              usePointStyle: true,
+              pointStyle: 'circle'
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Location Chart - Bar with gradient
+  const locationCtx = document.getElementById('locationChart');
+  if (locationCtx) {
+    const gradient = locationCtx.getContext('2d').createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, 'rgba(102, 126, 234, 0.9)');
+    gradient.addColorStop(1, 'rgba(118, 75, 162, 0.9)');
+
+    new Chart(locationCtx, {
+      type: 'bar',
+      data: {
+        labels: [<% locations.forEach((loc, i) => { %>'<%= loc.name %>'<%= i < locations.length - 1 ? ',' : '' %><% }) %>],
+        datasets: [{
+          label: 'Forklifts',
+          data: [<% locations.forEach((loc, i) => { %><%= loc.forklift_count || 0 %><%= i < locations.length - 1 ? ',' : '' %><% }) %>],
+          backgroundColor: gradient,
+          borderRadius: 8,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+  }
+});
+
+// Load and render predictions
+async function loadPredictions() {
+  const container = document.getElementById('predictionsContainer');
+
+  try {
+    const response = await fetch('/api/v1/predictions/summary');
+    const result = await response.json();
+
+    if (!result.success || !result.data) {
+      container.innerHTML = `
+        <div class="empty-state py-4">
+          <div class="empty-state-icon">
+            <i class="bi bi-check-circle"></i>
+          </div>
+          <h5>All Systems Normal</h5>
+          <p class="text-muted mb-0">No maintenance predictions at this time</p>
+        </div>
+      `;
+      return;
+    }
+
+    const data = result.data;
+
+    let html = `
+      <div class="predictions-summary">
+        <div class="summary-stat critical">
+          <h4>${data.criticalCount || 0}</h4>
+          <p>Critical</p>
+        </div>
+        <div class="summary-stat warning">
+          <h4>${data.warningCount || 0}</h4>
+          <p>Warning</p>
+        </div>
+        <div class="summary-stat ok">
+          <h4>${data.okCount || 0}</h4>
+          <p>Healthy</p>
+        </div>
+        <div class="summary-stat" style="margin-left: auto;">
+          <h4>${data.unitsWithPredictions || 0}<span style="font-size: 1rem; color: #666;">/${data.totalUnits || 0}</span></h4>
+          <p>Units Analyzed</p>
+        </div>
+      </div>
+    `;
+
+    if (data.topPredictions && data.topPredictions.length > 0) {
+      html += '<div class="prediction-grid">';
+
+      data.topPredictions.slice(0, 6).forEach(pred => {
+        const urgency = pred.status || 'ok';
+        const topPred = pred.topPrediction || {};
+        const icon = urgency === 'critical' ? 'exclamation-triangle-fill' :
+                    urgency === 'warning' ? 'exclamation-circle-fill' : 'check-circle-fill';
+
+        html += `
+          <div class="prediction-item urgency-${topPred.urgency || 'medium'}">
+            <div class="prediction-icon ${topPred.urgency || 'medium'}">
+              <i class="bi bi-${icon}"></i>
+            </div>
+            <div class="prediction-content">
+              <h6>
+                <a href="/forklifts/${pred.forkliftId}" class="text-decoration-none">${pred.forkliftId}</a>
+                <span class="confidence-badge">${topPred.confidence || 0}%</span>
+              </h6>
+              <p>${topPred.title || 'Maintenance predicted'}</p>
+              <div class="prediction-meta">
+                <span><i class="bi bi-geo-alt"></i> ${pred.location || 'Unknown'}</span>
+                ${topPred.daysUntil !== undefined ? `<span><i class="bi bi-calendar"></i> ${topPred.daysUntil} days</span>` : ''}
+                <span><i class="bi bi-speedometer2"></i> Score: ${pred.urgencyScore || 0}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += '</div>';
+    } else {
+      html += `
+        <div class="text-center py-3">
+          <p class="text-muted mb-0">No urgent predictions at this time</p>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+  } catch (error) {
+    console.error('Failed to load predictions:', error);
+    container.innerHTML = `
+      <div class="empty-state py-4">
+        <div class="empty-state-icon text-warning">
+          <i class="bi bi-exclamation-triangle"></i>
+        </div>
+        <h5>Unable to Load Predictions</h5>
+        <p class="text-muted mb-0">Please refresh the page to try again</p>
+      </div>
+    `;
+  }
+}
+</script>

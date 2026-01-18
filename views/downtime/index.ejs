@@ -1,0 +1,485 @@
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1">Downtime & Rentals</h1>
+      <p class="text-muted mb-0">Track equipment downtime and rental costs</p>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newDowntimeModal">
+        <i class="bi bi-plus-lg me-2"></i>Log Downtime
+      </button>
+      <button class="btn btn-outline-secondary" onclick="window.print()">
+        <i class="bi bi-printer me-2"></i>Print
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-danger bg-opacity-10 text-danger">
+              <i class="bi bi-x-circle-fill"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Currently Down</h6>
+              <h2 class="mb-0"><%= activeDowntime.length %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+              <i class="bi bi-truck"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Active Rentals</h6>
+              <h2 class="mb-0"><%= activeRentals.length %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-info bg-opacity-10 text-info">
+              <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Total Downtime Hours</h6>
+              <h2 class="mb-0"><%= summary.downtime?.total_hours?.toLocaleString() || 0 %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-success bg-opacity-10 text-success">
+              <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Total Costs (YTD)</h6>
+              <h2 class="mb-0">$<%= ((summary.downtime?.estimated_cost || 0) + (summary.rentals?.total_cost || 0)).toLocaleString() %></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Active Downtime -->
+    <div class="col-lg-6">
+      <div class="card glass-card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-x-octagon text-danger me-2"></i>Active Downtime Events</h5>
+          <span class="badge bg-danger"><%= activeDowntime.length %> Active</span>
+        </div>
+        <div class="card-body p-0">
+          <% if (activeDowntime.length > 0) { %>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Unit</th>
+                    <th>Reason</th>
+                    <th>Started</th>
+                    <th>Duration</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% activeDowntime.forEach(event => { %>
+                    <%
+                      const startDate = new Date(event.start_date);
+                      const now = new Date();
+                      const hours = Math.round((now - startDate) / (1000 * 60 * 60));
+                    %>
+                    <tr>
+                      <td>
+                        <a href="/forklifts/<%= event.forklift_id %>" class="fw-semibold">
+                          <%= event.unit_id || 'FL-' + event.forklift_id %>
+                        </a>
+                      </td>
+                      <td>
+                        <span class="badge bg-<%= event.reason === 'breakdown' ? 'danger' : event.reason === 'maintenance' ? 'warning' : 'info' %>">
+                          <%= event.reason %>
+                        </span>
+                      </td>
+                      <td><%= startDate.toLocaleDateString() %></td>
+                      <td>
+                        <span class="<%= hours > 72 ? 'text-danger fw-bold' : '' %>">
+                          <%= hours %> hrs
+                        </span>
+                      </td>
+                      <td>
+                        <button class="btn btn-sm btn-success" onclick="endDowntime(<%= event.id %>)">
+                          <i class="bi bi-check-lg"></i> End
+                        </button>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="text-center py-5">
+              <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+              <p class="text-muted mt-3 mb-0">No equipment currently down</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Rentals -->
+    <div class="col-lg-6">
+      <div class="card glass-card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-truck text-warning me-2"></i>Active Rentals</h5>
+          <span class="badge bg-warning text-dark"><%= activeRentals.length %> Active</span>
+        </div>
+        <div class="card-body p-0">
+          <% if (activeRentals.length > 0) { %>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Vendor</th>
+                    <th>Unit Replaced</th>
+                    <th>Daily Rate</th>
+                    <th>Running Cost</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% activeRentals.forEach(rental => { %>
+                    <%
+                      const startDate = new Date(rental.start_date);
+                      const now = new Date();
+                      const days = Math.ceil((now - startDate) / (1000 * 60 * 60 * 24));
+                      const runningCost = days * (rental.daily_rate || 0);
+                    %>
+                    <tr>
+                      <td class="fw-semibold"><%= rental.vendor %></td>
+                      <td>
+                        <% if (rental.forklift_id) { %>
+                          <a href="/forklifts/<%= rental.forklift_id %>">
+                            <%= rental.unit_id || 'FL-' + rental.forklift_id %>
+                          </a>
+                        <% } else { %>
+                          <span class="text-muted">N/A</span>
+                        <% } %>
+                      </td>
+                      <td>$<%= (rental.daily_rate || 0).toLocaleString() %></td>
+                      <td class="<%= runningCost > 5000 ? 'text-danger fw-bold' : '' %>">
+                        $<%= runningCost.toLocaleString() %>
+                        <small class="text-muted d-block"><%= days %> days</small>
+                      </td>
+                      <td>
+                        <button class="btn btn-sm btn-primary" onclick="endRental(<%= rental.id %>)">
+                          <i class="bi bi-box-arrow-left"></i> Return
+                        </button>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="text-center py-5">
+              <i class="bi bi-truck text-muted" style="font-size: 3rem;"></i>
+              <p class="text-muted mt-3 mb-0">No active rentals</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="row g-4 mt-2">
+    <div class="col-lg-8">
+      <div class="card glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Downtime & Rental Costs (12 Months)</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="costTrendChart" height="300"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Downtime by Reason</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="reasonChart" height="300"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent History -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Downtime History</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Unit</th>
+                  <th>Reason</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Duration</th>
+                  <th>Est. Cost</th>
+                  <th>Rental Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%
+                  const recentHistory = downtimeAnalysis.by_month?.slice(0, 5) || [];
+                  // For demo, we'll show the analysis data formatted differently
+                %>
+                <% if (downtimeAnalysis.total_events > 0) { %>
+                  <tr>
+                    <td colspan="7" class="text-center py-3">
+                      <strong><%= downtimeAnalysis.total_events %></strong> total events in the last 12 months
+                      <br>
+                      <span class="text-muted">
+                        Total Hours: <%= downtimeAnalysis.total_hours?.toLocaleString() || 0 %> |
+                        Estimated Cost: $<%= downtimeAnalysis.estimated_cost?.toLocaleString() || 0 %>
+                      </span>
+                    </td>
+                  </tr>
+                <% } else { %>
+                  <tr>
+                    <td colspan="7" class="text-center text-muted py-4">No downtime history</td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Downtime Modal -->
+<div class="modal fade" id="newDowntimeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h5 class="modal-title">Log Downtime Event</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="downtimeForm" onsubmit="submitDowntime(event)">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Forklift</label>
+            <select class="form-select" name="forklift_id" required>
+              <option value="">Select unit...</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Reason</label>
+            <select class="form-select" name="reason" required>
+              <option value="breakdown">Breakdown</option>
+              <option value="maintenance">Scheduled Maintenance</option>
+              <option value="accident">Accident</option>
+              <option value="inspection">Inspection</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Start Date</label>
+            <input type="datetime-local" class="form-control" name="start_date" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea class="form-control" name="notes" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Log Downtime</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Load forklifts for dropdown
+  fetch('/api/v1/forklifts')
+    .then(r => r.json())
+    .then(data => {
+      const select = document.querySelector('#newDowntimeModal select[name="forklift_id"]');
+      if (data.data) {
+        data.data.forEach(f => {
+          const option = document.createElement('option');
+          option.value = f.id;
+          option.textContent = f.unit_id || ('FL-' + f.id);
+          select.appendChild(option);
+        });
+      }
+    });
+
+  // Cost Trend Chart
+  const costTrendCtx = document.getElementById('costTrendChart');
+  if (costTrendCtx) {
+    const downtimeByMonth = <%- JSON.stringify(downtimeAnalysis.by_month || []) %>;
+    const rentalByMonth = <%- JSON.stringify(rentalAnalysis.by_month || []) %>;
+
+    // Merge data by month
+    const months = [...new Set([...downtimeByMonth.map(d => d.month), ...rentalByMonth.map(d => d.month)])].sort();
+
+    new Chart(costTrendCtx, {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [{
+          label: 'Downtime Cost ($)',
+          data: months.map(m => {
+            const d = downtimeByMonth.find(x => x.month === m);
+            return d?.estimated_cost || 0;
+          }),
+          backgroundColor: 'rgba(220, 53, 69, 0.7)',
+          borderColor: '#dc3545',
+          borderWidth: 1
+        }, {
+          label: 'Rental Cost ($)',
+          data: months.map(m => {
+            const r = rentalByMonth.find(x => x.month === m);
+            return r?.total_cost || 0;
+          }),
+          backgroundColor: 'rgba(255, 193, 7, 0.7)',
+          borderColor: '#ffc107',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' }
+        },
+        scales: {
+          x: { stacked: true },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            ticks: {
+              callback: v => '$' + v.toLocaleString()
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Reason Chart
+  const reasonCtx = document.getElementById('reasonChart');
+  if (reasonCtx) {
+    const byReason = <%- JSON.stringify(downtimeAnalysis.by_reason || []) %>;
+    new Chart(reasonCtx, {
+      type: 'doughnut',
+      data: {
+        labels: byReason.map(r => r.reason || 'Unknown'),
+        datasets: [{
+          data: byReason.map(r => r.count),
+          backgroundColor: ['#dc3545', '#ffc107', '#17a2b8', '#6c757d', '#28a745']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+  }
+});
+
+function submitDowntime(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    forklift_id: parseInt(form.forklift_id.value),
+    reason: form.reason.value,
+    start_date: form.start_date.value,
+    notes: form.notes.value
+  };
+
+  fetch('/api/v1/downtime', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.success) {
+      window.location.reload();
+    } else {
+      alert('Error: ' + result.error);
+    }
+  });
+}
+
+function endDowntime(id) {
+  if (!confirm('End this downtime event?')) return;
+
+  fetch(`/api/v1/downtime/${id}/end`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ end_date: new Date().toISOString() })
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.success) {
+      window.location.reload();
+    } else {
+      alert('Error: ' + result.error);
+    }
+  });
+}
+
+function endRental(id) {
+  if (!confirm('Return this rental unit?')) return;
+
+  fetch(`/api/v1/downtime/rentals/${id}/end`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ end_date: new Date().toISOString() })
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.success) {
+      window.location.reload();
+    } else {
+      alert('Error: ' + result.error);
+    }
+  });
+}
+</script>

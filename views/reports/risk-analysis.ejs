@@ -1,0 +1,475 @@
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1">Risk Analysis</h1>
+      <p class="text-muted mb-0">Fleet risk assessment and replacement planning</p>
+    </div>
+    <div class="btn-group">
+      <a href="/budget" class="btn btn-primary">
+        <i class="bi bi-calculator me-2"></i>Budget Planning
+      </a>
+      <button class="btn btn-outline-secondary" onclick="window.print()">
+        <i class="bi bi-printer me-2"></i>Print Report
+      </button>
+    </div>
+  </div>
+
+  <!-- Risk Overview -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card glass-card stat-card border-start border-danger border-4">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-danger bg-opacity-10 text-danger">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Critical Risk</h6>
+              <h2 class="mb-0 text-danger"><%= criticalUnits.length %></h2>
+              <small class="text-muted">Score 8-10</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card border-start border-warning border-4">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+              <i class="bi bi-exclamation-circle-fill"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">High Risk</h6>
+              <h2 class="mb-0 text-warning"><%= highRiskUnits.length %></h2>
+              <small class="text-muted">Score 6-7.9</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card border-start border-info border-4">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-info bg-opacity-10 text-info">
+              <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Average Risk Score</h6>
+              <h2 class="mb-0"><%= riskSummary.average_score?.toFixed(1) || 0 %></h2>
+              <small class="text-muted">Fleet average</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card glass-card stat-card border-start border-success border-4">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon bg-success bg-opacity-10 text-success">
+              <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div class="ms-3">
+              <h6 class="text-muted mb-1">Est. Replacement Budget</h6>
+              <h2 class="mb-0">$<%= (replacementRecommendations.total_investment || 0).toLocaleString() %></h2>
+              <small class="text-muted"><%= replacementRecommendations.year || 'Next FY' %></small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Risk Distribution Chart -->
+    <div class="col-lg-4">
+      <div class="card glass-card h-100">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Risk Distribution</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="riskDistributionChart" height="250"></canvas>
+          <div class="mt-3">
+            <div class="d-flex justify-content-between mb-2">
+              <span><span class="badge bg-danger">Critical</span></span>
+              <span class="fw-bold"><%= criticalUnits.length %></span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <span><span class="badge bg-warning text-dark">High</span></span>
+              <span class="fw-bold"><%= highRiskUnits.length %></span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <span><span class="badge bg-info">Medium</span></span>
+              <span class="fw-bold"><%= riskSummary.medium_risk || 0 %></span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span><span class="badge bg-success">Low</span></span>
+              <span class="fw-bold"><%= riskSummary.low_risk || 0 %></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Critical Risk Units -->
+    <div class="col-lg-8">
+      <div class="card glass-card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Critical Risk Units</h5>
+          <span class="badge bg-danger"><%= criticalUnits.length %> Units</span>
+        </div>
+        <div class="card-body p-0">
+          <% if (criticalUnits.length > 0) { %>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Unit ID</th>
+                    <th>Make/Model</th>
+                    <th>Age</th>
+                    <th>Hours</th>
+                    <th>Risk Score</th>
+                    <th>Recommendation</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% criticalUnits.slice(0, 10).forEach(unit => { %>
+                    <%
+                      const age = unit.manufacture_year ? new Date().getFullYear() - unit.manufacture_year : 0;
+                    %>
+                    <tr>
+                      <td>
+                        <a href="/forklifts/<%= unit.id %>" class="fw-semibold">
+                          <%= unit.unit_id || 'FL-' + unit.id %>
+                        </a>
+                      </td>
+                      <td><%= unit.make %> <%= unit.model %></td>
+                      <td><%= age %> yrs</td>
+                      <td><%= (unit.current_hours || 0).toLocaleString() %></td>
+                      <td>
+                        <span class="badge bg-danger fs-6">
+                          <%= unit.risk_score?.toFixed(1) || 'N/A' %>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge bg-danger">
+                          <i class="bi bi-arrow-repeat me-1"></i>Replace
+                        </span>
+                      </td>
+                      <td>
+                        <a href="/forklifts/<%= unit.id %>" class="btn btn-sm btn-outline-primary">
+                          <i class="bi bi-eye"></i>
+                        </a>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="text-center py-5">
+              <i class="bi bi-shield-check text-success" style="font-size: 3rem;"></i>
+              <p class="text-muted mt-3 mb-0">No critical risk units</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- High Risk Units -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card glass-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-exclamation-circle text-warning me-2"></i>High Risk Units</h5>
+          <span class="badge bg-warning text-dark"><%= highRiskUnits.length %> Units</span>
+        </div>
+        <div class="card-body p-0">
+          <% if (highRiskUnits.length > 0) { %>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Unit ID</th>
+                    <th>Location</th>
+                    <th>Make/Model</th>
+                    <th>Age</th>
+                    <th>Hours</th>
+                    <th>YTD Maint Cost</th>
+                    <th>Risk Score</th>
+                    <th>Recommendation</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% highRiskUnits.forEach(unit => { %>
+                    <%
+                      const age = unit.manufacture_year ? new Date().getFullYear() - unit.manufacture_year : 0;
+                    %>
+                    <tr>
+                      <td>
+                        <a href="/forklifts/<%= unit.id %>" class="fw-semibold">
+                          <%= unit.unit_id || 'FL-' + unit.id %>
+                        </a>
+                      </td>
+                      <td><%= unit.location_name || 'Unassigned' %></td>
+                      <td><%= unit.make %> <%= unit.model %></td>
+                      <td><%= age %> yrs</td>
+                      <td><%= (unit.current_hours || 0).toLocaleString() %></td>
+                      <td>$<%= (unit.ytd_maintenance_cost || 0).toLocaleString() %></td>
+                      <td>
+                        <span class="badge bg-warning text-dark fs-6">
+                          <%= unit.risk_score?.toFixed(1) || 'N/A' %>
+                        </span>
+                      </td>
+                      <td>
+                        <% if (unit.risk_score >= 7.5) { %>
+                          <span class="badge bg-danger">
+                            <i class="bi bi-arrow-repeat me-1"></i>Replace Soon
+                          </span>
+                        <% } else { %>
+                          <span class="badge bg-warning text-dark">
+                            <i class="bi bi-eye me-1"></i>Monitor
+                          </span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <a href="/forklifts/<%= unit.id %>" class="btn btn-sm btn-outline-primary">
+                          <i class="bi bi-eye"></i> View
+                        </a>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="text-center py-5">
+              <i class="bi bi-shield-check text-success" style="font-size: 3rem;"></i>
+              <p class="text-muted mt-3 mb-0">No high risk units</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Replacement Recommendations -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-calculator me-2"></i>Replacement Budget Recommendations - FY <%= replacementRecommendations.year || new Date().getFullYear() + 1 %></h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-4">
+            <div class="col-md-4">
+              <div class="border rounded p-3 h-100">
+                <h6 class="text-muted mb-2">Units Recommended for Replacement</h6>
+                <h3 class="mb-0"><%= replacementRecommendations.units_to_replace?.length || 0 %></h3>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="border rounded p-3 h-100">
+                <h6 class="text-muted mb-2">Total Investment Required</h6>
+                <h3 class="mb-0 text-primary">$<%= (replacementRecommendations.total_investment || 0).toLocaleString() %></h3>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="border rounded p-3 h-100">
+                <h6 class="text-muted mb-2">Est. Annual Savings</h6>
+                <h3 class="mb-0 text-success">$<%= (replacementRecommendations.projected_savings || 0).toLocaleString() %></h3>
+                <small class="text-muted">Reduced maintenance & downtime</small>
+              </div>
+            </div>
+          </div>
+
+          <% if (replacementRecommendations.units_to_replace && replacementRecommendations.units_to_replace.length > 0) { %>
+            <div class="table-responsive mt-4">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Unit ID</th>
+                    <th>Risk Score</th>
+                    <th>Current Cost/Month</th>
+                    <th>Est. Replacement Cost</th>
+                    <th>ROI Period</th>
+                    <th>Priority</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% replacementRecommendations.units_to_replace.slice(0, 10).forEach((unit, idx) => { %>
+                    <tr>
+                      <td>
+                        <a href="/forklifts/<%= unit.id %>">
+                          <%= unit.unit_id || 'FL-' + unit.id %>
+                        </a>
+                      </td>
+                      <td>
+                        <span class="badge bg-<%= unit.risk_score >= 8 ? 'danger' : 'warning' %>">
+                          <%= unit.risk_score?.toFixed(1) %>
+                        </span>
+                      </td>
+                      <td>$<%= (unit.monthly_cost || 0).toLocaleString() %></td>
+                      <td>$<%= (unit.replacement_cost || 35000).toLocaleString() %></td>
+                      <td><%= unit.roi_months || 24 %> months</td>
+                      <td>
+                        <% if (idx < 3) { %>
+                          <span class="badge bg-danger">Immediate</span>
+                        <% } else if (idx < 7) { %>
+                          <span class="badge bg-warning text-dark">High</span>
+                        <% } else { %>
+                          <span class="badge bg-info">Medium</span>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+
+          <div class="mt-4 text-end">
+            <a href="/budget" class="btn btn-primary">
+              <i class="bi bi-calculator me-2"></i>View Full Budget Plan
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Risk Factor Analysis -->
+  <div class="row mt-4">
+    <div class="col-lg-6">
+      <div class="card glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Risk Factor Weights</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="riskFactorsChart" height="250"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Risk Assessment Methodology</h5>
+        </div>
+        <div class="card-body">
+          <p class="mb-3">Units are scored on a 1-10 scale based on multiple weighted factors:</p>
+          <ul class="list-unstyled">
+            <li class="mb-2">
+              <strong>Age (15%)</strong> - Years since manufacture vs expected lifespan
+            </li>
+            <li class="mb-2">
+              <strong>Hours (20%)</strong> - Current hours vs manufacturer recommendations
+            </li>
+            <li class="mb-2">
+              <strong>Maintenance Cost (25%)</strong> - Historical cost trends and anomalies
+            </li>
+            <li class="mb-2">
+              <strong>Repair Frequency (20%)</strong> - Number of unscheduled repairs
+            </li>
+            <li class="mb-2">
+              <strong>Downtime (20%)</strong> - Total downtime hours and frequency
+            </li>
+          </ul>
+          <hr>
+          <div class="d-flex justify-content-between">
+            <span><span class="badge bg-success">Low (1-3.9)</span> Good condition</span>
+            <span><span class="badge bg-info">Medium (4-5.9)</span> Monitor</span>
+          </div>
+          <div class="d-flex justify-content-between mt-2">
+            <span><span class="badge bg-warning text-dark">High (6-7.9)</span> Plan replacement</span>
+            <span><span class="badge bg-danger">Critical (8-10)</span> Replace ASAP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Risk Distribution Chart
+  const riskDistCtx = document.getElementById('riskDistributionChart');
+  if (riskDistCtx) {
+    new Chart(riskDistCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Critical', 'High', 'Medium', 'Low'],
+        datasets: [{
+          data: [
+            <%= criticalUnits.length %>,
+            <%= highRiskUnits.length %>,
+            <%= riskSummary.medium_risk || 0 %>,
+            <%= riskSummary.low_risk || 0 %>
+          ],
+          backgroundColor: ['#dc3545', '#ffc107', '#17a2b8', '#28a745']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        cutout: '60%'
+      }
+    });
+  }
+
+  // Risk Factors Chart
+  const riskFactorsCtx = document.getElementById('riskFactorsChart');
+  if (riskFactorsCtx) {
+    new Chart(riskFactorsCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Age', 'Hours', 'Maint. Cost', 'Repair Freq.', 'Downtime'],
+        datasets: [{
+          label: 'Weight %',
+          data: [15, 20, 25, 20, 20],
+          backgroundColor: [
+            'rgba(13, 110, 253, 0.7)',
+            'rgba(111, 66, 193, 0.7)',
+            'rgba(220, 53, 69, 0.7)',
+            'rgba(255, 193, 7, 0.7)',
+            'rgba(23, 162, 184, 0.7)'
+          ],
+          borderColor: [
+            '#0d6efd',
+            '#6f42c1',
+            '#dc3545',
+            '#ffc107',
+            '#17a2b8'
+          ],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            max: 30,
+            ticks: {
+              callback: v => v + '%'
+            }
+          }
+        }
+      }
+    });
+  }
+});
+</script>

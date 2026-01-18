@@ -1,0 +1,156 @@
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Maintenance Records</h1>
+    <a href="/maintenance/new" class="btn btn-primary">
+      <i class="bi bi-plus-lg"></i> Log Maintenance
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="GET" class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Forklift</label>
+          <select class="form-select" name="forklift">
+            <option value="">All Forklifts</option>
+            <% forklifts.forEach(fl => { %>
+              <option value="<%= fl.id %>" <%= filters.forklift === fl.id ? 'selected' : '' %>>
+                <%= fl.id %> - <%= fl.model || 'Unknown' %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Type</label>
+          <select class="form-select" name="type">
+            <option value="">All Types</option>
+            <option value="routine" <%= filters.type === 'routine' ? 'selected' : '' %>>Routine</option>
+            <option value="repair" <%= filters.type === 'repair' ? 'selected' : '' %>>Repair</option>
+            <option value="inspection" <%= filters.type === 'inspection' ? 'selected' : '' %>>Inspection</option>
+            <option value="emergency" <%= filters.type === 'emergency' ? 'selected' : '' %>>Emergency</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Status</label>
+          <select class="form-select" name="status">
+            <option value="">All Status</option>
+            <option value="completed" <%= filters.status === 'completed' ? 'selected' : '' %>>Completed</option>
+            <option value="in_progress" <%= filters.status === 'in_progress' ? 'selected' : '' %>>In Progress</option>
+            <option value="scheduled" <%= filters.status === 'scheduled' ? 'selected' : '' %>>Scheduled</option>
+          </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-outline-primary me-2">
+            <i class="bi bi-search"></i> Filter
+          </button>
+          <a href="/maintenance" class="btn btn-outline-secondary">
+            <i class="bi bi-x-lg"></i> Clear
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Type Breakdown -->
+    <div class="col-lg-3">
+      <div class="card">
+        <div class="card-header">
+          <h6 class="mb-0">By Type</h6>
+        </div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush">
+            <% typeBreakdown.forEach(item => { %>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <%= item.type %>
+                <div>
+                  <span class="badge bg-primary rounded-pill"><%= item.count %></span>
+                  <small class="text-muted ms-2">$<%= (item.total_cost || 0).toLocaleString() %></small>
+                </div>
+              </li>
+            <% }) %>
+            <% if (typeBreakdown.length === 0) { %>
+              <li class="list-group-item text-muted text-center">No data</li>
+            <% } %>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Records Table -->
+    <div class="col-lg-9">
+      <div class="card">
+        <div class="card-header">
+          <span><%= records.length %> records found</span>
+        </div>
+        <div class="card-body p-0">
+          <% if (records.length === 0) { %>
+            <div class="text-center text-muted py-5">
+              <i class="bi bi-clipboard fs-1"></i>
+              <p class="mt-2">No maintenance records found</p>
+              <a href="/maintenance/new" class="btn btn-primary mt-2">Log First Maintenance</a>
+            </div>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Date</th>
+                    <th>Forklift</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th>Technician</th>
+                    <th>Cost</th>
+                    <th>Invoice #</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% records.forEach(record => { %>
+                    <tr>
+                      <td><%= new Date(record.service_date).toLocaleDateString() %></td>
+                      <td>
+                        <a href="/forklifts/<%= record.forklift_id %>"><%= record.forklift_id %></a>
+                        <% if (record.location_name) { %>
+                          <small class="d-block text-muted"><%= record.location_name %></small>
+                        <% } %>
+                      </td>
+                      <td>
+                        <span class="badge bg-<%= record.type === 'emergency' ? 'danger' : record.type === 'repair' ? 'warning' : 'secondary' %>">
+                          <%= record.type.toUpperCase() %>
+                        </span>
+                      </td>
+                      <td>
+                        <%= record.description || '-' %>
+                        <% if (record.parts_replaced) { %>
+                          <small class="d-block text-muted">Parts: <%= record.parts_replaced %></small>
+                        <% } %>
+                      </td>
+                      <td><%= record.technician_name || record.technician || '-' %></td>
+                      <td><%= record.total_cost ? '$' + record.total_cost.toLocaleString() : (record.cost ? '$' + record.cost.toLocaleString() : '-') %></td>
+                      <td>
+                        <% if (record.invoice_number) { %>
+                          <a href="/api/v1/invoices/<%= record.invoice_number %>" target="_blank" class="badge bg-light text-dark text-decoration-none" title="View Invoice PDF">
+                            <i class="bi bi-file-pdf me-1 text-danger"></i><%= record.invoice_number %>
+                          </a>
+                        <% } else { %>
+                          <span class="text-muted">-</span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <span class="badge bg-<%= record.status === 'completed' ? 'success' : record.status === 'in_progress' ? 'warning' : 'info' %>">
+                          <%= record.status.replace('_', ' ').toUpperCase() %>
+                        </span>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

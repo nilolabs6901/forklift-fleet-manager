@@ -1,0 +1,1187 @@
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <p class="text-secondary mb-0">AI-powered maintenance predictions and component lifecycle analysis</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" id="refreshPredictions">
+      <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="bi bi-download"></i> Export
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="#" id="exportCSV"><i class="bi bi-filetype-csv me-2"></i>Export to CSV</a></li>
+        <li><a class="dropdown-item" href="#" id="exportPDF"><i class="bi bi-file-pdf me-2"></i>Export to PDF</a></li>
+      </ul>
+    </div>
+    <button class="btn btn-primary" id="shareReportBtn">
+      <i class="bi bi-share"></i> Share
+    </button>
+    <a href="/api/v1/predictions" target="_blank" class="btn btn-outline-secondary">
+      <i class="bi bi-code-slash"></i> JSON
+    </a>
+  </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="row g-4 mb-4">
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card danger fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3 id="criticalCount">-</h3>
+          <p>Critical</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-exclamation-octagon-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card warning fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3 id="warningCount">-</h3>
+          <p>Warning</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card success fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3 id="okCount">-</h3>
+          <p>Healthy</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-check-circle-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="stat-card primary fade-in">
+      <div class="stat-card-body">
+        <div class="stat-content">
+          <h3 id="analyzedCount">-</h3>
+          <p>Units Analyzed</p>
+        </div>
+        <div class="stat-icon">
+          <i class="bi bi-cpu-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confidence Calibration Panel -->
+<div class="glass-card mb-4" id="confidencePanel" style="display: none;">
+  <div class="card-header">
+    <h5 class="mb-0">
+      <i class="bi bi-speedometer2 text-primary me-2"></i>Model Confidence Calibration
+    </h5>
+    <button class="btn btn-sm btn-outline-secondary" id="toggleConfidencePanel">
+      <i class="bi bi-chevron-up"></i>
+    </button>
+  </div>
+  <div class="card-body" id="confidenceContent">
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="confidence-metric">
+          <div class="confidence-label">Average Confidence</div>
+          <div class="confidence-value" id="avgConfidence">-</div>
+          <div class="confidence-bar">
+            <div class="confidence-fill" id="avgConfidenceFill" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="confidence-metric">
+          <div class="confidence-label">Data Quality Score</div>
+          <div class="confidence-value" id="dataQuality">-</div>
+          <div class="confidence-bar">
+            <div class="confidence-fill quality" id="dataQualityFill" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="confidence-metric">
+          <div class="confidence-label">Prediction Coverage</div>
+          <div class="confidence-value" id="predCoverage">-</div>
+          <div class="confidence-bar">
+            <div class="confidence-fill coverage" id="predCoverageFill" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row mt-4">
+      <div class="col-12">
+        <h6 class="text-muted mb-3">Confidence by Prediction Type</h6>
+        <div class="confidence-types" id="confidenceByType">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+    </div>
+    <div class="confidence-legend mt-3 pt-3 border-top">
+      <small class="text-muted">
+        <i class="bi bi-info-circle me-1"></i>
+        Confidence scores are calculated based on historical maintenance data, hour meter readings, and failure pattern matching.
+        Higher scores indicate more reliable predictions. Scores below 60% may require additional data collection.
+      </small>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+  <div class="row g-3 align-items-end">
+    <div class="col-lg-2 col-md-4">
+      <label class="form-label">Status</label>
+      <select class="form-select" id="filterStatus">
+        <option value="">All Statuses</option>
+        <option value="critical">Critical</option>
+        <option value="warning">Warning</option>
+        <option value="ok">Healthy</option>
+      </select>
+    </div>
+    <div class="col-lg-2 col-md-4">
+      <label class="form-label">Prediction Type</label>
+      <select class="form-select" id="filterType">
+        <option value="">All Types</option>
+        <option value="scheduled_service">Scheduled Service</option>
+        <option value="component_lifecycle">Component Lifecycle</option>
+        <option value="failure_pattern">Failure Pattern</option>
+      </select>
+    </div>
+    <div class="col-lg-2 col-md-4">
+      <label class="form-label">Location</label>
+      <select class="form-select" id="filterLocation">
+        <option value="">All Locations</option>
+        <% locations.forEach(loc => { %>
+          <option value="<%= loc.name %>"><%= loc.name %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <label class="form-label">Search Forklift</label>
+      <input type="text" class="form-control" id="filterSearch" placeholder="FL-0001...">
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary" id="applyFilters">
+          <i class="bi bi-funnel"></i> Apply
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="clearFilters">
+          <i class="bi bi-x-lg"></i> Clear
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Predictions List -->
+<div class="glass-card">
+  <div class="card-header">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-primary rounded-pill" id="predictionCount">0</span>
+      <span>predictions</span>
+    </div>
+    <div class="btn-group btn-group-sm">
+      <button type="button" class="btn btn-outline-secondary active" data-view="cards">
+        <i class="bi bi-grid-3x3-gap"></i>
+      </button>
+      <button type="button" class="btn btn-outline-secondary" data-view="table">
+        <i class="bi bi-list"></i>
+      </button>
+    </div>
+  </div>
+  <div class="card-body" id="predictionsContent">
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading predictions...</span>
+      </div>
+      <p class="text-muted mt-3 mb-0">Analyzing fleet data...</p>
+    </div>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-share me-2"></i>Share Predictions Report</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="shareForm">
+          <div class="mb-3">
+            <label class="form-label">Report Title</label>
+            <input type="text" class="form-control" id="shareTitle" value="Predictive Maintenance Report">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Link Expires</label>
+            <select class="form-select" id="shareExpiry">
+              <option value="1h">1 hour</option>
+              <option value="24h">24 hours</option>
+              <option value="7d" selected>7 days</option>
+              <option value="30d">30 days</option>
+              <option value="">Never</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Maximum Views (optional)</label>
+            <input type="number" class="form-control" id="shareMaxViews" placeholder="Unlimited" min="1">
+          </div>
+        </div>
+        <div id="shareResult" style="display: none;">
+          <div class="alert alert-success mb-3">
+            <i class="bi bi-check-circle me-2"></i>Share link created successfully!
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Share URL</label>
+            <div class="input-group">
+              <input type="text" class="form-control" id="shareUrl" readonly>
+              <button class="btn btn-outline-primary" type="button" id="copyShareUrl">
+                <i class="bi bi-clipboard"></i>
+              </button>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary flex-fill" id="openShareUrl">
+              <i class="bi bi-box-arrow-up-right me-1"></i>Open
+            </button>
+            <button class="btn btn-outline-secondary flex-fill" id="emailShareUrl">
+              <i class="bi bi-envelope me-1"></i>Email
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="createShareLink">
+          <i class="bi bi-link-45deg me-1"></i>Create Link
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .prediction-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1rem;
+  }
+
+  .prediction-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.25rem;
+    border-left: 4px solid #667eea;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: all 0.2s ease;
+  }
+
+  .prediction-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  }
+
+  .prediction-card.status-critical {
+    border-left-color: #ef4444;
+    background: linear-gradient(135deg, #fff 0%, #fef2f2 100%);
+  }
+
+  .prediction-card.status-warning {
+    border-left-color: #f59e0b;
+    background: linear-gradient(135deg, #fff 0%, #fffbeb 100%);
+  }
+
+  .prediction-card.status-ok {
+    border-left-color: #10b981;
+    background: linear-gradient(135deg, #fff 0%, #ecfdf5 100%);
+  }
+
+  .prediction-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+  }
+
+  .forklift-link {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #1e293b;
+    text-decoration: none;
+  }
+
+  .forklift-link:hover {
+    color: #667eea;
+  }
+
+  .urgency-score {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .urgency-score .score-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+
+  .urgency-score.critical .score-value { color: #ef4444; }
+  .urgency-score.warning .score-value { color: #f59e0b; }
+  .urgency-score.ok .score-value { color: #10b981; }
+
+  .prediction-details {
+    margin-bottom: 0.75rem;
+  }
+
+  .prediction-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #374151;
+  }
+
+  .prediction-desc {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin: 0;
+  }
+
+  .prediction-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    color: #9ca3af;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .prediction-meta span {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .confidence-badge {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .type-badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .type-badge.scheduled_service {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+  }
+
+  .type-badge.component_lifecycle {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+  }
+
+  .type-badge.failure_pattern {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  /* Table view */
+  .predictions-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .predictions-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #64748b;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  .predictions-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+
+  .predictions-table tr:hover {
+    background: #f8fafc;
+  }
+
+  .status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 0.5rem;
+  }
+
+  .status-indicator.critical { background: #ef4444; }
+  .status-indicator.warning { background: #f59e0b; }
+  .status-indicator.ok { background: #10b981; }
+
+  .component-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .component-chip {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #64748b;
+  }
+
+  .component-chip.critical {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+
+  .component-chip.warning {
+    background: #fef3c7;
+    color: #d97706;
+  }
+
+  .empty-state-predictions {
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+
+  .empty-state-predictions i {
+    font-size: 4rem;
+    color: #10b981;
+    margin-bottom: 1rem;
+  }
+
+  /* Confidence calibration styles */
+  .confidence-metric {
+    text-align: center;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 12px;
+  }
+
+  .confidence-label {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+  }
+
+  .confidence-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+  }
+
+  .confidence-bar {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .confidence-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+
+  .confidence-fill.quality {
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  }
+
+  .confidence-fill.coverage {
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+  }
+
+  .confidence-types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .confidence-type-item {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .confidence-type-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+  }
+
+  .confidence-type-icon.scheduled_service {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+  }
+
+  .confidence-type-icon.component_lifecycle {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+  }
+
+  .confidence-type-icon.failure_pattern {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  .confidence-type-info {
+    flex: 1;
+  }
+
+  .confidence-type-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #374151;
+  }
+
+  .confidence-type-score {
+    font-size: 0.8rem;
+    color: #6b7280;
+  }
+
+  .confidence-type-bar {
+    width: 60px;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .confidence-type-fill {
+    height: 100%;
+    background: #667eea;
+    border-radius: 3px;
+  }
+
+  .prediction-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  let allPredictions = [];
+  let fleetSummary = {};
+  let currentView = 'cards';
+
+  // Load predictions
+  loadPredictions();
+
+  // Refresh button
+  document.getElementById('refreshPredictions').addEventListener('click', loadPredictions);
+
+  // View toggle
+  document.querySelectorAll('[data-view]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentView = this.dataset.view;
+      renderPredictions(filterPredictions());
+    });
+  });
+
+  // Filter handlers
+  document.getElementById('applyFilters').addEventListener('click', () => {
+    renderPredictions(filterPredictions());
+  });
+
+  document.getElementById('clearFilters').addEventListener('click', () => {
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterType').value = '';
+    document.getElementById('filterLocation').value = '';
+    document.getElementById('filterSearch').value = '';
+    renderPredictions(allPredictions);
+  });
+
+  // Enter key on search
+  document.getElementById('filterSearch').addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') renderPredictions(filterPredictions());
+  });
+
+  // Confidence panel toggle
+  document.getElementById('toggleConfidencePanel').addEventListener('click', function() {
+    const content = document.getElementById('confidenceContent');
+    const icon = this.querySelector('i');
+    if (content.style.display === 'none') {
+      content.style.display = 'block';
+      icon.className = 'bi bi-chevron-up';
+    } else {
+      content.style.display = 'none';
+      icon.className = 'bi bi-chevron-down';
+    }
+  });
+
+  // Export CSV
+  document.getElementById('exportCSV').addEventListener('click', (e) => {
+    e.preventDefault();
+    exportToCSV();
+  });
+
+  // Export PDF
+  document.getElementById('exportPDF').addEventListener('click', (e) => {
+    e.preventDefault();
+    exportToPDF();
+  });
+
+  // Share button
+  document.getElementById('shareReportBtn').addEventListener('click', () => {
+    document.getElementById('shareForm').style.display = 'block';
+    document.getElementById('shareResult').style.display = 'none';
+    document.getElementById('createShareLink').style.display = 'block';
+    new bootstrap.Modal(document.getElementById('shareModal')).show();
+  });
+
+  // Create share link
+  document.getElementById('createShareLink').addEventListener('click', async () => {
+    const btn = document.getElementById('createShareLink');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating...';
+    btn.disabled = true;
+
+    try {
+      const response = await fetch('/api/v1/share/predictions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: document.getElementById('shareTitle').value,
+          expiresIn: document.getElementById('shareExpiry').value || null,
+          maxViews: document.getElementById('shareMaxViews').value ? parseInt(document.getElementById('shareMaxViews').value) : null
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        document.getElementById('shareForm').style.display = 'none';
+        document.getElementById('shareResult').style.display = 'block';
+        document.getElementById('shareUrl').value = result.data.fullUrl;
+        document.getElementById('createShareLink').style.display = 'none';
+        showToast('Share link created!', 'success');
+      } else {
+        showToast(result.error || 'Failed to create share link', 'danger');
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      showToast('Failed to create share link', 'danger');
+    } finally {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
+  });
+
+  // Copy share URL
+  document.getElementById('copyShareUrl').addEventListener('click', () => {
+    const urlInput = document.getElementById('shareUrl');
+    urlInput.select();
+    document.execCommand('copy');
+    showToast('URL copied to clipboard!', 'success');
+  });
+
+  // Open share URL
+  document.getElementById('openShareUrl').addEventListener('click', () => {
+    window.open(document.getElementById('shareUrl').value, '_blank');
+  });
+
+  // Email share URL
+  document.getElementById('emailShareUrl').addEventListener('click', () => {
+    const url = document.getElementById('shareUrl').value;
+    const title = document.getElementById('shareTitle').value;
+    const subject = encodeURIComponent(title);
+    const body = encodeURIComponent(`Check out this fleet predictions report:\n\n${url}`);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  });
+
+  async function loadPredictions() {
+    const content = document.getElementById('predictionsContent');
+    content.innerHTML = `
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="text-muted mt-3 mb-0">Analyzing fleet data...</p>
+      </div>
+    `;
+
+    try {
+      const response = await fetch('/api/v1/predictions');
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load predictions');
+      }
+
+      allPredictions = result.data.predictions || [];
+      fleetSummary = result.data.summary || {};
+
+      // Update stats
+      document.getElementById('criticalCount').textContent = fleetSummary.criticalCount || 0;
+      document.getElementById('warningCount').textContent = fleetSummary.warningCount || 0;
+      document.getElementById('okCount').textContent = fleetSummary.okCount || 0;
+      document.getElementById('analyzedCount').textContent =
+        `${fleetSummary.unitsWithPredictions || 0}/${fleetSummary.totalUnits || 0}`;
+
+      // Update confidence calibration panel
+      updateConfidencePanel(allPredictions, fleetSummary);
+
+      renderPredictions(allPredictions);
+
+    } catch (error) {
+      console.error('Failed to load predictions:', error);
+      content.innerHTML = `
+        <div class="empty-state-predictions">
+          <i class="bi bi-exclamation-triangle text-warning"></i>
+          <h5>Unable to Load Predictions</h5>
+          <p class="text-muted">Please try refreshing the page.</p>
+          <button class="btn btn-primary" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  function filterPredictions() {
+    const status = document.getElementById('filterStatus').value;
+    const type = document.getElementById('filterType').value;
+    const location = document.getElementById('filterLocation').value;
+    const search = document.getElementById('filterSearch').value.toLowerCase();
+
+    return allPredictions.filter(pred => {
+      if (status && pred.overallStatus !== status) return false;
+      if (location && pred.location !== location) return false;
+      if (search && !pred.forkliftId.toLowerCase().includes(search)) return false;
+      if (type) {
+        const hasType = pred.predictions && pred.predictions.some(p => p.type === type);
+        if (!hasType) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderPredictions(predictions) {
+    const content = document.getElementById('predictionsContent');
+    document.getElementById('predictionCount').textContent = predictions.length;
+
+    if (predictions.length === 0) {
+      content.innerHTML = `
+        <div class="empty-state-predictions">
+          <i class="bi bi-check-circle"></i>
+          <h5>All Systems Normal</h5>
+          <p class="text-muted">No predictions match your current filters.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Sort by urgency score descending
+    predictions.sort((a, b) => (b.urgencyScore || 0) - (a.urgencyScore || 0));
+
+    if (currentView === 'cards') {
+      renderCardsView(predictions);
+    } else {
+      renderTableView(predictions);
+    }
+  }
+
+  function renderCardsView(predictions) {
+    const content = document.getElementById('predictionsContent');
+    let html = '<div class="prediction-cards">';
+
+    predictions.forEach(pred => {
+      const topPred = pred.predictions && pred.predictions[0] || {};
+      const status = pred.overallStatus || 'ok';
+      const statusClass = status === 'critical' ? 'critical' : status === 'warning' ? 'warning' : 'ok';
+
+      html += `
+        <div class="prediction-card status-${statusClass}">
+          <div class="prediction-card-header">
+            <div>
+              <a href="/forklifts/${pred.forkliftId}" class="forklift-link">${pred.forkliftId}</a>
+              <div class="text-muted" style="font-size: 0.8rem;">${pred.model || 'Unknown Model'}</div>
+            </div>
+            <div class="urgency-score ${statusClass}">
+              <span class="score-value">${pred.urgencyScore || 0}</span>
+              <span class="text-muted">/100</span>
+            </div>
+          </div>
+
+          ${topPred.title ? `
+            <div class="prediction-details">
+              <div class="prediction-title">
+                <span class="type-badge ${topPred.type || ''}">${formatType(topPred.type)}</span>
+                ${topPred.title}
+              </div>
+              <p class="prediction-desc">${topPred.description || ''}</p>
+            </div>
+          ` : `
+            <div class="prediction-details">
+              <p class="prediction-desc text-success">No immediate maintenance predicted</p>
+            </div>
+          `}
+
+          <div class="prediction-meta">
+            <span><i class="bi bi-geo-alt"></i> ${pred.location || 'Unknown'}</span>
+            ${topPred.confidence ? `<span class="confidence-badge">${topPred.confidence}% confidence</span>` : ''}
+            ${topPred.daysUntil !== undefined ? `<span><i class="bi bi-calendar"></i> ${topPred.daysUntil} days</span>` : ''}
+          </div>
+
+          ${pred.componentHealth && (pred.componentHealth.criticalCount > 0 || pred.componentHealth.warningCount > 0) ? `
+            <div class="component-list">
+              ${pred.componentHealth.criticalCount > 0 ? `<span class="component-chip critical">${pred.componentHealth.criticalCount} critical components</span>` : ''}
+              ${pred.componentHealth.warningCount > 0 ? `<span class="component-chip warning">${pred.componentHealth.warningCount} warnings</span>` : ''}
+            </div>
+          ` : ''}
+
+          <div class="prediction-actions mt-3 pt-2 border-top">
+            <a href="/maintenance/new?forklift=${pred.forkliftId}" class="btn btn-sm btn-primary">
+              <i class="bi bi-calendar-plus me-1"></i>Schedule Maintenance
+            </a>
+            <a href="/forklifts/${pred.forkliftId}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-info-circle me-1"></i>Details
+            </a>
+          </div>
+        </div>
+      `;
+    });
+
+    html += '</div>';
+    content.innerHTML = html;
+  }
+
+  function renderTableView(predictions) {
+    const content = document.getElementById('predictionsContent');
+
+    let html = `
+      <div class="table-responsive">
+        <table class="predictions-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Forklift</th>
+              <th>Location</th>
+              <th>Top Prediction</th>
+              <th>Confidence</th>
+              <th>Days Until</th>
+              <th>Score</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    predictions.forEach(pred => {
+      const topPred = pred.predictions && pred.predictions[0] || {};
+      const status = pred.overallStatus || 'ok';
+
+      html += `
+        <tr>
+          <td>
+            <span class="status-indicator ${status}"></span>
+            ${status.charAt(0).toUpperCase() + status.slice(1)}
+          </td>
+          <td>
+            <a href="/forklifts/${pred.forkliftId}" class="fw-semibold text-decoration-none">${pred.forkliftId}</a>
+            <div class="text-muted" style="font-size: 0.75rem;">${pred.model || ''}</div>
+          </td>
+          <td>${pred.location || '-'}</td>
+          <td>
+            ${topPred.title ? `
+              <span class="type-badge ${topPred.type || ''}">${formatType(topPred.type)}</span>
+              ${topPred.title}
+            ` : '<span class="text-success">All good</span>'}
+          </td>
+          <td>${topPred.confidence ? `${topPred.confidence}%` : '-'}</td>
+          <td>${topPred.daysUntil !== undefined ? `${topPred.daysUntil} days` : '-'}</td>
+          <td><strong>${pred.urgencyScore || 0}</strong></td>
+          <td>
+            <div class="btn-group btn-group-sm">
+              <a href="/maintenance/new?forklift=${pred.forkliftId}" class="btn btn-primary" title="Schedule Maintenance">
+                <i class="bi bi-calendar-plus"></i>
+              </a>
+              <a href="/forklifts/${pred.forkliftId}" class="btn btn-outline-secondary" title="View Details">
+                <i class="bi bi-eye"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += '</tbody></table></div>';
+    content.innerHTML = html;
+  }
+
+  function formatType(type) {
+    if (!type) return '';
+    return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  // Confidence calibration panel
+  function updateConfidencePanel(predictions, summary) {
+    const panel = document.getElementById('confidencePanel');
+    if (predictions.length === 0) {
+      panel.style.display = 'none';
+      return;
+    }
+    panel.style.display = 'block';
+
+    // Calculate average confidence across all predictions
+    let totalConfidence = 0;
+    let confidenceCount = 0;
+    const typeConfidences = {};
+
+    predictions.forEach(pred => {
+      if (pred.predictions) {
+        pred.predictions.forEach(p => {
+          if (p.confidence) {
+            totalConfidence += p.confidence;
+            confidenceCount++;
+
+            if (!typeConfidences[p.type]) {
+              typeConfidences[p.type] = { total: 0, count: 0 };
+            }
+            typeConfidences[p.type].total += p.confidence;
+            typeConfidences[p.type].count++;
+          }
+        });
+      }
+    });
+
+    const avgConfidence = confidenceCount > 0 ? Math.round(totalConfidence / confidenceCount) : 0;
+    const coverage = summary.totalUnits > 0 ? Math.round((summary.unitsWithPredictions / summary.totalUnits) * 100) : 0;
+
+    // Data quality based on coverage and prediction count
+    const dataQuality = Math.min(100, Math.round((coverage * 0.4) + (Math.min(confidenceCount / predictions.length, 3) * 20)));
+
+    // Update UI
+    document.getElementById('avgConfidence').textContent = avgConfidence + '%';
+    document.getElementById('avgConfidenceFill').style.width = avgConfidence + '%';
+
+    document.getElementById('dataQuality').textContent = dataQuality + '%';
+    document.getElementById('dataQualityFill').style.width = dataQuality + '%';
+
+    document.getElementById('predCoverage').textContent = coverage + '%';
+    document.getElementById('predCoverageFill').style.width = coverage + '%';
+
+    // Render confidence by type
+    const typeIcons = {
+      'scheduled_service': 'bi-calendar-check',
+      'component_lifecycle': 'bi-gear',
+      'failure_pattern': 'bi-exclamation-diamond'
+    };
+
+    let typeHtml = '';
+    for (const [type, data] of Object.entries(typeConfidences)) {
+      const avg = Math.round(data.total / data.count);
+      typeHtml += `
+        <div class="confidence-type-item">
+          <div class="confidence-type-icon ${type}">
+            <i class="bi ${typeIcons[type] || 'bi-question-circle'}"></i>
+          </div>
+          <div class="confidence-type-info">
+            <div class="confidence-type-name">${formatType(type)}</div>
+            <div class="confidence-type-score">${avg}% avg (${data.count} predictions)</div>
+          </div>
+          <div class="confidence-type-bar">
+            <div class="confidence-type-fill" style="width: ${avg}%"></div>
+          </div>
+        </div>
+      `;
+    }
+    document.getElementById('confidenceByType').innerHTML = typeHtml || '<p class="text-muted mb-0">No type-specific confidence data available</p>';
+  }
+
+  // Export to CSV
+  function exportToCSV() {
+    if (allPredictions.length === 0) {
+      showToast('No predictions to export', 'warning');
+      return;
+    }
+
+    const headers = ['Forklift ID', 'Model', 'Location', 'Status', 'Urgency Score', 'Top Prediction', 'Confidence', 'Days Until', 'Generated At'];
+    const rows = allPredictions.map(pred => {
+      const topPred = pred.predictions && pred.predictions[0] || {};
+      return [
+        pred.forkliftId,
+        pred.model || '',
+        pred.location || '',
+        pred.overallStatus || 'ok',
+        pred.urgencyScore || 0,
+        topPred.title || 'No prediction',
+        topPred.confidence ? topPred.confidence + '%' : '-',
+        topPred.daysUntil !== undefined ? topPred.daysUntil : '-',
+        pred.generatedAt || new Date().toISOString()
+      ];
+    });
+
+    let csv = headers.join(',') + '\\n';
+    rows.forEach(row => {
+      csv += row.map(cell => {
+        // Escape quotes and wrap in quotes if contains comma
+        const str = String(cell).replace(/"/g, '""');
+        return str.includes(',') ? '"' + str + '"' : str;
+      }).join(',') + '\\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'predictions_' + new Date().toISOString().split('T')[0] + '.csv';
+    link.click();
+
+    showToast('CSV exported successfully', 'success');
+  }
+
+  // Export to PDF (creates printable HTML)
+  function exportToPDF() {
+    if (allPredictions.length === 0) {
+      showToast('No predictions to export', 'warning');
+      return;
+    }
+
+    // Create printable HTML
+    const printWindow = window.open('', '_blank');
+    const date = new Date().toLocaleDateString();
+
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Predictive Maintenance Report - ${date}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+          h1 { color: #1e293b; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+          h2 { color: #475569; margin-top: 30px; }
+          .summary { display: flex; gap: 20px; margin: 20px 0; }
+          .summary-item { background: #f8fafc; padding: 15px 25px; border-radius: 8px; text-align: center; }
+          .summary-value { font-size: 2em; font-weight: bold; color: #1e293b; }
+          .summary-label { color: #64748b; font-size: 0.9em; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th { background: #f1f5f9; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0; }
+          td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
+          .status-critical { color: #ef4444; font-weight: bold; }
+          .status-warning { color: #f59e0b; font-weight: bold; }
+          .status-ok { color: #10b981; font-weight: bold; }
+          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.9em; }
+          @media print { body { margin: 20px; } }
+        </style>
+      </head>
+      <body>
+        <h1>Predictive Maintenance Report</h1>
+        <p>Generated: ${new Date().toLocaleString()}</p>
+
+        <div class="summary">
+          <div class="summary-item">
+            <div class="summary-value">${fleetSummary.criticalCount || 0}</div>
+            <div class="summary-label">Critical</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-value">${fleetSummary.warningCount || 0}</div>
+            <div class="summary-label">Warning</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-value">${fleetSummary.okCount || 0}</div>
+            <div class="summary-label">Healthy</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-value">${fleetSummary.unitsWithPredictions || 0}/${fleetSummary.totalUnits || 0}</div>
+            <div class="summary-label">Units Analyzed</div>
+          </div>
+        </div>
+
+        <h2>Predictions Detail</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Forklift</th>
+              <th>Location</th>
+              <th>Status</th>
+              <th>Score</th>
+              <th>Top Prediction</th>
+              <th>Confidence</th>
+              <th>Days Until</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    allPredictions.forEach(pred => {
+      const topPred = pred.predictions && pred.predictions[0] || {};
+      const statusClass = 'status-' + (pred.overallStatus || 'ok');
+      html += `
+        <tr>
+          <td><strong>${pred.forkliftId}</strong><br><small>${pred.model || ''}</small></td>
+          <td>${pred.location || '-'}</td>
+          <td class="${statusClass}">${(pred.overallStatus || 'ok').toUpperCase()}</td>
+          <td>${pred.urgencyScore || 0}</td>
+          <td>${topPred.title || 'No immediate prediction'}</td>
+          <td>${topPred.confidence ? topPred.confidence + '%' : '-'}</td>
+          <td>${topPred.daysUntil !== undefined ? topPred.daysUntil + ' days' : '-'}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+        <div class="footer">
+          <p>This report was generated by the Fleet Manager Predictive Maintenance System.</p>
+          <p>Predictions are based on historical maintenance data, component lifecycles, and failure pattern analysis.</p>
+        </div>
+        <scr` + `ipt>window.onload = function() { window.print(); }</scr` + `ipt>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    showToast('PDF report opened for printing', 'success');
+  }
+});
+</script>

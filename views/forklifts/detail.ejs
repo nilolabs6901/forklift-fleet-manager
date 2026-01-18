@@ -1,0 +1,812 @@
+<div class="container-fluid">
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/forklifts">Fleet Inventory</a></li>
+      <li class="breadcrumb-item active"><%= forklift.id %></li>
+    </ol>
+  </nav>
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1"><%= forklift.id %> - <%= forklift.model || 'Unknown Model' %></h1>
+      <span class="badge bg-<%= forklift.status === 'active' ? 'success' : forklift.status === 'maintenance' ? 'warning' : 'danger' %> me-2">
+        <%= forklift.status.replace('_', ' ').toUpperCase() %>
+      </span>
+      <span class="badge bg-<%= forklift.risk_level === 'critical' || forklift.risk_level === 'high' ? 'danger' : forklift.risk_level === 'medium' ? 'warning' : 'success' %>">
+        <%= (forklift.risk_level || 'low').toUpperCase() %> RISK (<%= forklift.risk_score || 1 %>/10)
+      </span>
+    </div>
+    <div>
+      <a href="/forklifts/<%= forklift.id %>/edit" class="btn btn-outline-secondary me-2">
+        <i class="bi bi-pencil"></i> Edit
+      </a>
+      <a href="/maintenance/new?forklift=<%= forklift.id %>" class="btn btn-primary">
+        <i class="bi bi-wrench"></i> Log Maintenance
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Details Card -->
+    <div class="col-lg-4">
+      <!-- Forklift Image -->
+      <div class="card mb-4">
+        <div class="card-body text-center p-4">
+          <%
+            // Determine image based on manufacturer and fuel type
+            let imagePath = '/images/forklifts/default-forklift.svg';
+            const mfr = (forklift.manufacturer || '').toLowerCase();
+            const fuel = (forklift.fuel_type || '').toLowerCase();
+
+            if (mfr.includes('toyota')) {
+              imagePath = '/images/forklifts/toyota-forklift.svg';
+            } else if (mfr.includes('crown')) {
+              imagePath = '/images/forklifts/crown-forklift.svg';
+            } else if (mfr.includes('hyster')) {
+              imagePath = '/images/forklifts/hyster-forklift.svg';
+            } else if (mfr.includes('yale')) {
+              imagePath = '/images/forklifts/yale-forklift.svg';
+            } else if (mfr.includes('raymond')) {
+              imagePath = '/images/forklifts/raymond-forklift.svg';
+            } else if (fuel === 'electric') {
+              imagePath = '/images/forklifts/electric-forklift.svg';
+            } else if (fuel === 'propane') {
+              imagePath = '/images/forklifts/propane-forklift.svg';
+            } else if (fuel === 'diesel') {
+              imagePath = '/images/forklifts/diesel-forklift.svg';
+            }
+          %>
+          <img src="<%= forklift.image_url || imagePath %>" alt="<%= forklift.id %>" class="img-fluid mb-3" style="max-height: 180px;">
+          <h5 class="mb-1"><%= forklift.manufacturer || 'Unknown' %></h5>
+          <p class="text-muted mb-0"><%= forklift.model || 'Unknown Model' %></p>
+        </div>
+      </div>
+
+      <div class="glass-card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Equipment Details</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-borderless mb-0">
+            <tr>
+              <th class="text-muted">Model</th>
+              <td class="text-end"><%= forklift.model || '-' %></td>
+            </tr>
+            <tr>
+              <th class="text-muted">Manufacturer</th>
+              <td class="text-end"><%= forklift.manufacturer || '-' %></td>
+            </tr>
+            <tr>
+              <th class="text-muted">Serial Number</th>
+              <td class="text-end"><%= forklift.serial_number || '-' %></td>
+            </tr>
+            <tr>
+              <th class="text-muted">Year</th>
+              <td class="text-end"><%= forklift.year || '-' %></td>
+            </tr>
+            <tr>
+              <th class="text-muted">Fuel Type</th>
+              <td class="text-end text-capitalize"><%= forklift.fuel_type || '-' %></td>
+            </tr>
+            <tr>
+              <th class="text-muted">Capacity</th>
+              <td class="text-end"><%= forklift.capacity_lbs ? forklift.capacity_lbs.toLocaleString() + ' lbs' : '-' %></td>
+            </tr>
+            <tr>
+              <th class="text-muted">Location</th>
+              <td class="text-end">
+                <% if (forklift.location_name) { %>
+                  <a href="/locations/<%= forklift.location_id %>"><%= forklift.location_name %></a>
+                <% } else { %>
+                  -
+                <% } %>
+              </td>
+            </tr>
+            <tr>
+              <th class="text-muted">Purchase Date</th>
+              <td class="text-end"><%= forklift.purchase_date ? new Date(forklift.purchase_date).toLocaleDateString() : '-' %></td>
+            </tr>
+            <tr>
+              <th class="text-muted">Purchase Price</th>
+              <td class="text-end"><%= forklift.purchase_price ? '$' + forklift.purchase_price.toLocaleString() : '-' %></td>
+            </tr>
+            <tr>
+              <th class="text-muted">Current Value</th>
+              <td class="text-end"><%= forklift.current_value ? '$' + forklift.current_value.toLocaleString() : '-' %></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Hour Meter -->
+      <div class="glass-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-speedometer me-2"></i>Hour Meter</h5>
+          <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#updateHoursModal">
+            <i class="bi bi-pencil"></i> Update
+          </button>
+        </div>
+        <div class="card-body text-center">
+          <h1 class="display-4 mb-0"><%= (forklift.current_hours || forklift.operating_hours || 0).toLocaleString() %></h1>
+          <small class="text-muted">Operating Hours</small>
+          <% if (hourTrends) { %>
+          <div class="row mt-3 text-center">
+            <div class="col-4">
+              <h5 class="mb-0"><%= Math.round(hourTrends.average_daily_hours || 0) %></h5>
+              <small class="text-muted">Avg/Day</small>
+            </div>
+            <div class="col-4">
+              <h5 class="mb-0"><%= Math.round(hourTrends.average_weekly_hours || 0) %></h5>
+              <small class="text-muted">Avg/Week</small>
+            </div>
+            <div class="col-4">
+              <h5 class="mb-0"><%= Math.round(hourTrends.projected_annual_hours || 0).toLocaleString() %></h5>
+              <small class="text-muted">Projected/Yr</small>
+            </div>
+          </div>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Service Schedule -->
+      <div class="glass-card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-calendar me-2"></i>Service Schedule</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-borderless mb-0">
+            <tr>
+              <th class="text-muted">Last Service</th>
+              <td class="text-end"><%= forklift.last_service_date ? new Date(forklift.last_service_date).toLocaleDateString() : 'Never' %></td>
+            </tr>
+            <tr>
+              <th class="text-muted">Next Service</th>
+              <td class="text-end">
+                <% if (forklift.next_service_date) { %>
+                  <% const isOverdue = new Date(forklift.next_service_date) <= new Date(); %>
+                  <span class="<%= isOverdue ? 'text-danger fw-bold' : '' %>">
+                    <%= new Date(forklift.next_service_date).toLocaleDateString() %>
+                    <% if (isOverdue) { %><span class="badge bg-danger ms-1">OVERDUE</span><% } %>
+                  </span>
+                <% } else { %>
+                  <span class="text-muted">Not scheduled</span>
+                <% } %>
+              </td>
+            </tr>
+            <tr>
+              <th class="text-muted">Service Interval</th>
+              <td class="text-end"><%= forklift.service_interval_hours || 250 %> hrs / <%= forklift.service_interval_days || 90 %> days</td>
+            </tr>
+            <tr>
+              <th class="text-muted">Hours Until Due</th>
+              <td class="text-end">
+                <% const hoursUntil = (forklift.next_service_hours || (forklift.current_hours + 250)) - (forklift.current_hours || 0); %>
+                <span class="<%= hoursUntil <= 0 ? 'text-danger fw-bold' : hoursUntil <= 50 ? 'text-warning' : '' %>">
+                  <%= hoursUntil.toLocaleString() %> hrs
+                </span>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Service Center Contact -->
+      <% if (location && (location.service_center_phone || location.service_center_email || location.service_center_contact)) { %>
+      <div class="glass-card mb-4 service-center-card">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="bi bi-headset me-2"></i>Service Center Contact</h5>
+        </div>
+        <div class="card-body">
+          <% if (location.service_center_contact) { %>
+            <div class="d-flex align-items-center mb-3">
+              <div class="service-icon me-3">
+                <i class="bi bi-person-fill"></i>
+              </div>
+              <div>
+                <small class="text-muted d-block">Point of Contact</small>
+                <strong><%= location.service_center_contact %></strong>
+              </div>
+            </div>
+          <% } %>
+          <% if (location.service_center_phone) { %>
+            <div class="d-flex align-items-center mb-3">
+              <div class="service-icon me-3">
+                <i class="bi bi-telephone-fill"></i>
+              </div>
+              <div>
+                <small class="text-muted d-block">Phone</small>
+                <a href="tel:<%= location.service_center_phone.replace(/[^\d+]/g, '') %>" class="fw-bold text-primary">
+                  <%= location.service_center_phone %>
+                </a>
+              </div>
+            </div>
+          <% } %>
+          <% if (location.service_center_email) { %>
+            <div class="d-flex align-items-center mb-2">
+              <div class="service-icon me-3">
+                <i class="bi bi-envelope-fill"></i>
+              </div>
+              <div>
+                <small class="text-muted d-block">Email</small>
+                <a href="mailto:<%= location.service_center_email %>" class="fw-bold text-primary">
+                  <%= location.service_center_email %>
+                </a>
+              </div>
+            </div>
+          <% } %>
+          <div class="mt-3 pt-2 border-top">
+            <small class="text-muted">
+              <i class="bi bi-geo-alt me-1"></i>
+              <a href="/locations/<%= location.id %>" class="text-decoration-none"><%= location.name %></a>
+            </small>
+          </div>
+        </div>
+      </div>
+      <style>
+        .service-center-card .card-header {
+          background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%) !important;
+        }
+        .service-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          background: linear-gradient(135deg, #e7f1ff 0%, #cfe2ff 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #0d6efd;
+          font-size: 1.1rem;
+        }
+        .service-center-card a:hover {
+          text-decoration: underline !important;
+        }
+      </style>
+      <% } %>
+
+      <!-- Risk Assessment -->
+      <% if (riskAssessment) { %>
+      <div class="glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Risk Assessment</h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1">
+              <span>Overall Risk Score</span>
+              <span class="fw-bold"><%= riskAssessment.overall_score %>/10</span>
+            </div>
+            <div class="progress" style="height: 10px;">
+              <div class="progress-bar bg-<%= riskAssessment.overall_score >= 7 ? 'danger' : riskAssessment.overall_score >= 4 ? 'warning' : 'success' %>"
+                   style="width: <%= riskAssessment.overall_score * 10 %>%"></div>
+            </div>
+          </div>
+
+          <table class="table table-sm table-borderless mb-3">
+            <tr><td class="text-muted">Age Score</td><td class="text-end fw-bold"><%= riskAssessment.age_score || '-' %>/10</td></tr>
+            <tr><td class="text-muted">Hours Score</td><td class="text-end fw-bold"><%= riskAssessment.hours_score || '-' %>/10</td></tr>
+            <tr><td class="text-muted">Maintenance Cost</td><td class="text-end fw-bold"><%= riskAssessment.maintenance_cost_score || '-' %>/10</td></tr>
+            <tr><td class="text-muted">Repair Frequency</td><td class="text-end fw-bold"><%= riskAssessment.repair_frequency_score || '-' %>/10</td></tr>
+            <tr><td class="text-muted">Downtime Score</td><td class="text-end fw-bold"><%= riskAssessment.downtime_score || '-' %>/10</td></tr>
+          </table>
+
+          <div class="mb-2">
+            <strong>Recommendation:</strong>
+            <span class="badge bg-<%= riskAssessment.repair_vs_replace === 'replace' ? 'danger' : riskAssessment.repair_vs_replace === 'monitor' ? 'warning' : 'success' %> ms-2">
+              <%= (riskAssessment.repair_vs_replace || 'CONTINUE').toUpperCase() %>
+            </span>
+          </div>
+
+          <% if (riskAssessment.replacement_urgency && riskAssessment.replacement_urgency !== 'not_needed') { %>
+          <div class="mb-2">
+            <strong>Urgency:</strong>
+            <span class="text-muted ms-2"><%= riskAssessment.replacement_urgency.replace(/_/g, ' ') %></span>
+          </div>
+          <% } %>
+
+          <% if (riskAssessment.projected_annual_maintenance_cost) { %>
+          <div class="mb-2">
+            <strong>Projected Annual Cost:</strong>
+            <span class="ms-2">$<%= riskAssessment.projected_annual_maintenance_cost.toLocaleString() %></span>
+          </div>
+          <% } %>
+
+          <% if (riskAssessment.cost_savings_if_replaced > 0) { %>
+          <div class="alert alert-info mt-3 mb-0">
+            <small><strong>Potential Savings:</strong> $<%= riskAssessment.cost_savings_if_replaced.toLocaleString() %> over 3 years if replaced</small>
+          </div>
+          <% } %>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Component Health (loaded via API) -->
+      <div class="glass-card" id="componentHealthCard" style="display: none;">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-gear-wide-connected me-2"></i>Component Health</h5>
+        </div>
+        <div class="card-body" id="componentHealthBody">
+          <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <!-- Alerts -->
+      <% const activeAlerts = alerts ? alerts.filter(a => !a.is_resolved) : []; %>
+      <% if (activeAlerts.length > 0) { %>
+      <div class="glass-card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Active Alerts (<%= activeAlerts.length %>)</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            <% activeAlerts.forEach(alert => { %>
+              <div class="list-group-item d-flex align-items-start py-3">
+                <span class="badge badge-severity-<%= alert.severity %> me-3">
+                  <%= alert.severity.toUpperCase() %>
+                </span>
+                <div class="flex-grow-1">
+                  <h6 class="mb-1"><%= alert.title %></h6>
+                  <% if (alert.message) { %>
+                    <p class="mb-1 small text-muted"><%= alert.message %></p>
+                  <% } %>
+                  <small class="text-muted"><%= new Date(alert.created_at).toLocaleDateString() %></small>
+                </div>
+                <button class="btn btn-sm btn-outline-success resolve-alert" data-id="<%= alert.id %>">
+                  <i class="bi bi-check"></i> Resolve
+                </button>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Maintenance Cost Summary -->
+      <% if (maintenanceHistory && maintenanceHistory.cost_summary) { %>
+      <div class="glass-card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-currency-dollar me-2"></i>12-Month Cost Summary</h5>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-3">
+              <h4 class="mb-0">$<%= (maintenanceHistory.cost_summary.total_cost || 0).toLocaleString() %></h4>
+              <small class="text-muted">Total Cost</small>
+            </div>
+            <div class="col-3">
+              <h4 class="mb-0">$<%= (maintenanceHistory.cost_summary.labor_cost || 0).toLocaleString() %></h4>
+              <small class="text-muted">Labor</small>
+            </div>
+            <div class="col-3">
+              <h4 class="mb-0">$<%= (maintenanceHistory.cost_summary.parts_cost || 0).toLocaleString() %></h4>
+              <small class="text-muted">Parts</small>
+            </div>
+            <div class="col-3">
+              <h4 class="mb-0"><%= maintenanceHistory.cost_summary.service_count || 0 %></h4>
+              <small class="text-muted">Services</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Maintenance History -->
+      <div class="glass-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-wrench me-2"></i>Maintenance History</h5>
+          <a href="/maintenance/new?forklift=<%= forklift.id %>" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-plus"></i> Add Record
+          </a>
+        </div>
+        <div class="card-body p-0">
+          <% const records = maintenanceHistory && maintenanceHistory.recent_records ? maintenanceHistory.recent_records : (maintenanceHistory && Array.isArray(maintenanceHistory) ? maintenanceHistory : []); %>
+          <% if (records.length === 0) { %>
+            <div class="empty-state py-5">
+              <i class="bi bi-clipboard-check display-4 text-muted"></i>
+              <p class="mt-2 text-muted">No maintenance records</p>
+            </div>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th>Technician</th>
+                    <th>Cost</th>
+                    <th>Hours</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% records.forEach(record => { %>
+                    <tr>
+                      <td><%= record.service_date ? new Date(record.service_date).toLocaleDateString() : '-' %></td>
+                      <td>
+                        <span class="badge bg-<%= record.type === 'emergency' ? 'danger' : record.type === 'repair' ? 'warning' : 'info' %>">
+                          <%= record.type %>
+                        </span>
+                      </td>
+                      <td><%= record.description || record.work_performed || '-' %></td>
+                      <td><%= record.technician_name || record.technician || '-' %></td>
+                      <td><%= record.total_cost ? '$' + record.total_cost.toLocaleString() : '-' %></td>
+                      <td><%= record.hours_at_service ? record.hours_at_service.toLocaleString() : '-' %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Downtime History -->
+      <% if (downtimeHistory && downtimeHistory.events && downtimeHistory.events.length > 0) { %>
+      <div class="glass-card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Downtime History</h5>
+        </div>
+        <div class="card-body">
+          <div class="row text-center mb-3">
+            <div class="col-4">
+              <h4 class="mb-0"><%= downtimeHistory.total_events %></h4>
+              <small class="text-muted">Total Events</small>
+            </div>
+            <div class="col-4">
+              <h4 class="mb-0"><%= Math.round(downtimeHistory.total_downtime_hours || 0) %></h4>
+              <small class="text-muted">Total Hours</small>
+            </div>
+            <div class="col-4">
+              <h4 class="mb-0">$<%= Math.round(downtimeHistory.total_cost || 0).toLocaleString() %></h4>
+              <small class="text-muted">Total Cost</small>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead>
+                <tr>
+                  <th>Start</th>
+                  <th>Duration</th>
+                  <th>Type</th>
+                  <th>Root Cause</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% downtimeHistory.events.slice(0, 5).forEach(event => { %>
+                <tr>
+                  <td><%= event.start_time ? new Date(event.start_time).toLocaleDateString() : '-' %></td>
+                  <td><%= event.duration_hours ? event.duration_hours.toFixed(1) + ' hrs' : 'Ongoing' %></td>
+                  <td><span class="badge bg-secondary"><%= event.type %></span></td>
+                  <td><%= event.root_cause ? event.root_cause.replace(/_/g, ' ') : '-' %></td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Hour Logs -->
+      <div class="glass-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Hour Log History</h5>
+        </div>
+        <div class="card-body p-0">
+          <% const logs = hourLogs || []; %>
+          <% if (logs.length === 0) { %>
+            <div class="empty-state py-5">
+              <i class="bi bi-clock display-4 text-muted"></i>
+              <p class="mt-2 text-muted">No hour logs recorded</p>
+            </div>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Reading</th>
+                    <th>Delta</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% logs.slice(0, 15).forEach(log => { %>
+                    <tr class="<%= log.is_flagged ? 'table-warning' : '' %>">
+                      <td><%= new Date(log.recorded_at).toLocaleString() %></td>
+                      <td class="fw-bold"><%= (log.reading || log.hours || 0).toLocaleString() %></td>
+                      <td>
+                        <% if (log.reading_delta !== undefined) { %>
+                          <span class="<%= log.reading_delta < 0 ? 'text-danger' : '' %>">
+                            <%= log.reading_delta >= 0 ? '+' : '' %><%= log.reading_delta.toFixed(1) %>
+                          </span>
+                        <% } else { %>
+                          -
+                        <% } %>
+                      </td>
+                      <td><span class="badge bg-secondary"><%= log.source || 'manual' %></span></td>
+                      <td>
+                        <% if (log.is_flagged) { %>
+                          <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Flagged</span>
+                        <% } else if (log.is_validated) { %>
+                          <span class="badge bg-success"><i class="bi bi-check"></i> Validated</span>
+                        <% } else { %>
+                          <span class="badge bg-secondary">Normal</span>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Update Hours Modal -->
+<div class="modal fade" id="updateHoursModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Update Hour Meter</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="updateHoursForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Current Hours</label>
+            <input type="number" class="form-control" name="hours" step="0.1" min="0" value="<%= forklift.current_hours || forklift.operating_hours || 0 %>" required>
+            <small class="text-muted">Enter the current hour meter reading</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Update Hours</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Component Health Styles */
+  .component-health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .component-item {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 0.75rem;
+    border-left: 3px solid #e2e8f0;
+    transition: all 0.2s ease;
+  }
+
+  .component-item:hover {
+    background: #f1f5f9;
+  }
+
+  .component-item.urgency-critical {
+    border-left-color: #ef4444;
+    background: #fef2f2;
+  }
+
+  .component-item.urgency-high {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+  }
+
+  .component-item.urgency-medium {
+    border-left-color: #3b82f6;
+    background: #eff6ff;
+  }
+
+  .component-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #374151;
+    margin-bottom: 0.25rem;
+  }
+
+  .component-status {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+  }
+
+  .component-bar {
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .component-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+
+  .component-fill.good { background: #10b981; }
+  .component-fill.monitor { background: #3b82f6; }
+  .component-fill.due-soon { background: #f59e0b; }
+  .component-fill.overdue { background: #ef4444; }
+
+  .component-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
+    color: #9ca3af;
+  }
+
+  .component-summary {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .component-summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .summary-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .summary-dot.critical { background: #ef4444; }
+  .summary-dot.warning { background: #f59e0b; }
+  .summary-dot.good { background: #10b981; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Load component health
+  loadComponentHealth();
+
+  // Update Hours Form
+  const updateHoursForm = document.getElementById('updateHoursForm');
+  if (updateHoursForm) {
+    updateHoursForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+
+      try {
+        const response = await fetch('/api/v1/forklifts/<%= forklift.id %>/hours', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reading: parseFloat(formData.get('hours'))
+          })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          showToast('Hours updated successfully', 'success');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          showToast(result.error || 'Failed to update hours', 'danger');
+        }
+      } catch (error) {
+        showToast('Error updating hours', 'danger');
+      }
+    });
+  }
+
+  // Resolve Alert buttons
+  document.querySelectorAll('.resolve-alert').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const alertId = this.dataset.id;
+      try {
+        const response = await fetch(`/api/v1/alerts/${alertId}/resolve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (result.success) {
+          showToast('Alert resolved', 'success');
+          setTimeout(() => location.reload(), 500);
+        }
+      } catch (error) {
+        showToast('Error resolving alert', 'danger');
+      }
+    });
+  });
+
+  // Load component health from predictions API
+  async function loadComponentHealth() {
+    try {
+      const response = await fetch('/api/v1/predictions/forklift/<%= forklift.id %>/components');
+      const result = await response.json();
+
+      if (result.success && result.data && result.data.components) {
+        renderComponentHealth(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to load component health:', error);
+    }
+  }
+
+  function renderComponentHealth(data) {
+    const card = document.getElementById('componentHealthCard');
+    const body = document.getElementById('componentHealthBody');
+
+    if (!data.components || data.components.length === 0) {
+      return;
+    }
+
+    card.style.display = 'block';
+
+    const criticalCount = data.criticalCount || 0;
+    const warningCount = data.warningCount || 0;
+    const goodCount = data.components.length - criticalCount - warningCount;
+
+    let html = `
+      <div class="component-summary">
+        <div class="component-summary-item">
+          <span class="summary-dot critical"></span>
+          <span>${criticalCount} Critical</span>
+        </div>
+        <div class="component-summary-item">
+          <span class="summary-dot warning"></span>
+          <span>${warningCount} Warning</span>
+        </div>
+        <div class="component-summary-item">
+          <span class="summary-dot good"></span>
+          <span>${goodCount} Good</span>
+        </div>
+      </div>
+      <div class="component-health-grid">
+    `;
+
+    data.components.forEach(comp => {
+      const fillClass = comp.status === 'overdue' ? 'overdue' :
+                       comp.status === 'due_soon' ? 'due-soon' :
+                       comp.status === 'monitor' ? 'monitor' : 'good';
+
+      const urgencyClass = comp.urgency === 'critical' ? 'urgency-critical' :
+                          comp.urgency === 'high' ? 'urgency-high' :
+                          comp.urgency === 'medium' ? 'urgency-medium' : '';
+
+      html += `
+        <div class="component-item ${urgencyClass}">
+          <div class="component-name">${comp.component}</div>
+          <div class="component-status">
+            ${comp.status === 'overdue' ? '<span class="text-danger">Overdue</span>' :
+              comp.status === 'due_soon' ? '<span class="text-warning">Due Soon</span>' :
+              comp.status === 'monitor' ? '<span class="text-info">Monitor</span>' :
+              '<span class="text-success">Good</span>'}
+          </div>
+          <div class="component-bar">
+            <div class="component-fill ${fillClass}" style="width: ${Math.min(100, comp.lifeUsedPercent)}%"></div>
+          </div>
+          <div class="component-meta">
+            <span>${comp.lifeUsedPercent}% used</span>
+            <span>${comp.remainingHours} hrs left</span>
+          </div>
+        </div>
+      `;
+    });
+
+    html += '</div>';
+    body.innerHTML = html;
+  }
+});
+</script>
