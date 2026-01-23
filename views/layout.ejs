@@ -106,6 +106,12 @@
         </li>
 
         <li class="nav-section-title">Admin</li>
+        <li class="<%= currentPath.startsWith('/inbound-invoices') ? 'active' : '' %>">
+          <a href="/inbound-invoices">
+            <span class="nav-icon"><i class="bi bi-envelope-paper"></i></span>
+            <span class="nav-text">Invoice Processing</span>
+          </a>
+        </li>
         <li class="<%= currentPath.startsWith('/hour-meter-review') ? 'active' : '' %>">
           <a href="/hour-meter-review">
             <span class="nav-icon"><i class="bi bi-speedometer2"></i></span>

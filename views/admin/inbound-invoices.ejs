@@ -1,0 +1,514 @@
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1">Inbound Invoice Processing</h1>
+      <p class="text-muted mb-0">Review and approve invoices from email automation</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-primary" onclick="refreshInvoices()">
+        <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+      </button>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+        <i class="bi bi-upload me-2"></i>Upload Invoice
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-primary" id="statTotal">0</div>
+          <div class="text-muted small">Total Received</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-warning" id="statPending">0</div>
+          <div class="text-muted small">Pending Review</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-success" id="statAutoProcessed">0</div>
+          <div class="text-muted small">Auto-Processed</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-info" id="statApproved">0</div>
+          <div class="text-muted small">Manually Approved</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-danger" id="statRejected">0</div>
+          <div class="text-muted small">Rejected</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-secondary" id="statTotalValue">$0</div>
+          <div class="text-muted small">Total Value</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card glass-card mb-4">
+    <div class="card-body py-2">
+      <div class="row align-items-center">
+        <div class="col-md-3">
+          <select class="form-select form-select-sm" id="filterStatus" onchange="loadInvoices()">
+            <option value="">All Statuses</option>
+            <option value="ready_for_review" selected>Pending Review</option>
+            <option value="auto_processed">Auto-Processed</option>
+            <option value="approved">Manually Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="error">Errors</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <input type="text" class="form-control form-control-sm" id="searchInput"
+                 placeholder="Search vendor or invoice #..." onkeyup="filterTable()">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Queue Table -->
+  <div class="card glass-card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0" id="invoiceTable">
+          <thead class="table-light">
+            <tr>
+              <th>Status</th>
+              <th>Received</th>
+              <th>Vendor</th>
+              <th>Invoice #</th>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Matched Unit</th>
+              <th>Confidence</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="invoiceTableBody">
+            <tr>
+              <td colspan="9" class="text-center py-4">
+                <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                Loading invoices...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Upload Invoice</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="uploadForm" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label">Invoice File (PDF or Image)</label>
+            <input type="file" class="form-control" name="invoice" id="invoiceFile"
+                   accept=".pdf,.png,.jpg,.jpeg" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Vendor Name (optional)</label>
+            <input type="text" class="form-control" name="vendor" placeholder="e.g., Southern States Toyotalift">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description (optional)</label>
+            <input type="text" class="form-control" name="description" placeholder="e.g., Monthly PM Invoice">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="uploadInvoice()">
+          <i class="bi bi-upload me-2"></i>Upload & Process
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Review Invoice</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-6">
+            <h6 class="mb-3">Extracted Data</h6>
+            <div id="extractedDataDisplay"></div>
+          </div>
+          <div class="col-md-6">
+            <h6 class="mb-3">Match to Forklift</h6>
+            <div class="mb-3">
+              <label class="form-label">Select Unit</label>
+              <select class="form-select" id="matchForkliftSelect">
+                <option value="">-- Select a forklift --</option>
+                <% if (typeof forklifts !== 'undefined') { %>
+                  <% forklifts.forEach(f => { %>
+                    <option value="<%= f.id %>"><%= f.unit_id || f.id %> - <%= f.model %></option>
+                  <% }); %>
+                <% } %>
+              </select>
+            </div>
+            <div id="suggestedMatch" class="alert alert-info d-none">
+              <strong>Suggested Match:</strong>
+              <span id="suggestedMatchText"></span>
+              <button class="btn btn-sm btn-outline-primary ms-2" onclick="useSuggestedMatch()">Use This</button>
+            </div>
+
+            <h6 class="mt-4 mb-3">Adjustments</h6>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small">Labor Cost</label>
+                <input type="number" class="form-control form-control-sm" id="adjLaborCost" step="0.01">
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Parts Cost</label>
+                <input type="number" class="form-control form-control-sm" id="adjPartsCost" step="0.01">
+              </div>
+              <div class="col-12">
+                <label class="form-label small">Description</label>
+                <input type="text" class="form-control form-control-sm" id="adjDescription">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr>
+
+        <h6>OCR Raw Text</h6>
+        <div class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;">
+          <pre class="mb-0 small" id="ocrTextDisplay" style="white-space: pre-wrap;"></pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-danger" onclick="rejectInvoice()">
+          <i class="bi bi-x-lg me-2"></i>Reject
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" onclick="approveInvoice()">
+          <i class="bi bi-check-lg me-2"></i>Approve & Create Record
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentInvoiceId = null;
+let currentInvoiceData = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadStats();
+  loadInvoices();
+});
+
+async function loadStats() {
+  try {
+    const res = await fetch('/api/v1/inbound-invoices/stats');
+    const data = await res.json();
+
+    if (data.success) {
+      document.getElementById('statTotal').textContent = data.data.total || 0;
+      document.getElementById('statPending').textContent = data.data.pending_review || 0;
+      document.getElementById('statAutoProcessed').textContent = data.data.auto_processed || 0;
+      document.getElementById('statApproved').textContent = data.data.manually_approved || 0;
+      document.getElementById('statRejected').textContent = data.data.rejected || 0;
+      document.getElementById('statTotalValue').textContent = '$' + (data.data.total_value || 0).toLocaleString();
+    }
+  } catch (err) {
+    console.error('Failed to load stats:', err);
+  }
+}
+
+async function loadInvoices() {
+  const status = document.getElementById('filterStatus').value;
+  const url = status ? `/api/v1/inbound-invoices?status=${status}` : '/api/v1/inbound-invoices';
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.success) {
+      renderInvoiceTable(data.data);
+    }
+  } catch (err) {
+    console.error('Failed to load invoices:', err);
+    document.getElementById('invoiceTableBody').innerHTML = `
+      <tr><td colspan="9" class="text-center text-danger py-4">Failed to load invoices</td></tr>
+    `;
+  }
+}
+
+function renderInvoiceTable(invoices) {
+  const tbody = document.getElementById('invoiceTableBody');
+
+  if (!invoices || invoices.length === 0) {
+    tbody.innerHTML = `
+      <tr><td colspan="9" class="text-center text-muted py-4">No invoices found</td></tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = invoices.map(inv => {
+    const statusBadge = getStatusBadge(inv.status);
+    const confidence = inv.match_confidence ? Math.round(inv.match_confidence * 100) + '%' : '-';
+    const confidenceClass = inv.match_confidence >= 0.8 ? 'text-success' : inv.match_confidence >= 0.5 ? 'text-warning' : 'text-danger';
+
+    return `
+      <tr>
+        <td>${statusBadge}</td>
+        <td>${formatDate(inv.created_at)}</td>
+        <td>${inv.vendor_name || inv.email_from || '-'}</td>
+        <td><code>${inv.invoice_number || '-'}</code></td>
+        <td>${inv.invoice_date || '-'}</td>
+        <td>${inv.total_amount ? '$' + inv.total_amount.toFixed(2) : '-'}</td>
+        <td>${inv.matched_unit_id || '-'}</td>
+        <td class="${confidenceClass} fw-bold">${confidence}</td>
+        <td>
+          ${inv.status === 'ready_for_review' ? `
+            <button class="btn btn-sm btn-outline-primary" onclick="openReview(${inv.id})">
+              <i class="bi bi-eye"></i> Review
+            </button>
+          ` : inv.status === 'auto_processed' || inv.status === 'approved' ? `
+            <span class="text-success"><i class="bi bi-check-circle"></i></span>
+          ` : inv.status === 'rejected' ? `
+            <span class="text-danger"><i class="bi bi-x-circle"></i></span>
+          ` : `
+            <span class="text-muted">-</span>
+          `}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function getStatusBadge(status) {
+  const badges = {
+    'pending': '<span class="badge bg-secondary">Pending</span>',
+    'processing': '<span class="badge bg-info">Processing</span>',
+    'parsed': '<span class="badge bg-primary">Parsed</span>',
+    'ready_for_review': '<span class="badge bg-warning text-dark">Needs Review</span>',
+    'approved': '<span class="badge bg-success">Approved</span>',
+    'auto_processed': '<span class="badge bg-success">Auto-Processed</span>',
+    'rejected': '<span class="badge bg-danger">Rejected</span>',
+    'error': '<span class="badge bg-danger">Error</span>'
+  };
+  return badges[status] || `<span class="badge bg-secondary">${status}</span>`;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+}
+
+async function openReview(id) {
+  currentInvoiceId = id;
+
+  try {
+    const res = await fetch(`/api/v1/inbound-invoices/${id}`);
+    const data = await res.json();
+
+    if (data.success) {
+      currentInvoiceData = data.data;
+      populateReviewModal(data.data);
+      new bootstrap.Modal(document.getElementById('reviewModal')).show();
+    }
+  } catch (err) {
+    console.error('Failed to load invoice:', err);
+    alert('Failed to load invoice details');
+  }
+}
+
+function populateReviewModal(invoice) {
+  const ext = invoice.extracted_data || {};
+
+  // Extracted data display
+  document.getElementById('extractedDataDisplay').innerHTML = `
+    <table class="table table-sm">
+      <tr><td class="text-muted">Vendor</td><td><strong>${ext.vendor || '-'}</strong></td></tr>
+      <tr><td class="text-muted">Invoice #</td><td><code>${ext.invoiceNumber || '-'}</code></td></tr>
+      <tr><td class="text-muted">Date</td><td>${ext.invoiceDate || '-'}</td></tr>
+      <tr><td class="text-muted">Location</td><td>${ext.location || '-'}</td></tr>
+      <tr><td class="text-muted">Unit Ref</td><td>${ext.unitReference || '-'}</td></tr>
+      <tr><td class="text-muted">Make</td><td>${ext.make || '-'}</td></tr>
+      <tr><td class="text-muted">Model</td><td>${ext.model || '-'}</td></tr>
+      <tr><td class="text-muted">Serial #</td><td>${ext.serialNumber || '-'}</td></tr>
+      <tr><td class="text-muted">Description</td><td>${ext.description || '-'}</td></tr>
+      <tr><td class="text-muted">Labor Cost</td><td>$${(ext.laborCost || 0).toFixed(2)}</td></tr>
+      <tr><td class="text-muted">Parts Cost</td><td>$${(ext.partsCost || 0).toFixed(2)}</td></tr>
+      <tr><td class="text-muted">Tax</td><td>$${(ext.tax || 0).toFixed(2)}</td></tr>
+      <tr><td class="text-muted fw-bold">Total</td><td class="fw-bold">$${(ext.totalAmount || 0).toFixed(2)}</td></tr>
+    </table>
+  `;
+
+  // OCR text
+  document.getElementById('ocrTextDisplay').textContent = ext.rawText || invoice.ocr_text || 'No OCR text available';
+
+  // Suggested match
+  if (invoice.matched_forklift_id) {
+    document.getElementById('suggestedMatch').classList.remove('d-none');
+    document.getElementById('suggestedMatchText').textContent =
+      `${invoice.matched_unit_id || invoice.matched_forklift_id} - ${invoice.matched_model || ''} (${Math.round((invoice.match_confidence || 0) * 100)}% confidence)`;
+    document.getElementById('matchForkliftSelect').value = invoice.matched_forklift_id;
+  } else {
+    document.getElementById('suggestedMatch').classList.add('d-none');
+  }
+
+  // Pre-fill adjustments
+  document.getElementById('adjLaborCost').value = ext.laborCost || '';
+  document.getElementById('adjPartsCost').value = ext.partsCost || ext.subtotal || '';
+  document.getElementById('adjDescription').value = ext.description || '';
+}
+
+function useSuggestedMatch() {
+  if (currentInvoiceData && currentInvoiceData.matched_forklift_id) {
+    document.getElementById('matchForkliftSelect').value = currentInvoiceData.matched_forklift_id;
+  }
+}
+
+async function approveInvoice() {
+  const forkliftId = document.getElementById('matchForkliftSelect').value;
+
+  if (!forkliftId) {
+    alert('Please select a forklift to match this invoice to');
+    return;
+  }
+
+  const adjustments = {
+    laborCost: parseFloat(document.getElementById('adjLaborCost').value) || 0,
+    partsCost: parseFloat(document.getElementById('adjPartsCost').value) || 0,
+    description: document.getElementById('adjDescription').value
+  };
+
+  try {
+    const res = await fetch(`/api/v1/inbound-invoices/${currentInvoiceId}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forkliftId, adjustments })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Invoice approved and maintenance record created!');
+      bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
+      loadStats();
+      loadInvoices();
+    } else {
+      alert('Error: ' + data.error);
+    }
+  } catch (err) {
+    console.error('Failed to approve invoice:', err);
+    alert('Failed to approve invoice');
+  }
+}
+
+async function rejectInvoice() {
+  const reason = prompt('Enter rejection reason (optional):');
+
+  try {
+    const res = await fetch(`/api/v1/inbound-invoices/${currentInvoiceId}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Invoice rejected');
+      bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
+      loadStats();
+      loadInvoices();
+    } else {
+      alert('Error: ' + data.error);
+    }
+  } catch (err) {
+    console.error('Failed to reject invoice:', err);
+    alert('Failed to reject invoice');
+  }
+}
+
+async function uploadInvoice() {
+  const form = document.getElementById('uploadForm');
+  const formData = new FormData(form);
+
+  const fileInput = document.getElementById('invoiceFile');
+  if (!fileInput.files.length) {
+    alert('Please select a file');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/v1/inbound-invoices/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert('Invoice uploaded and processed!');
+      bootstrap.Modal.getInstance(document.getElementById('uploadModal')).hide();
+      form.reset();
+      loadStats();
+      loadInvoices();
+    } else {
+      alert('Error: ' + data.error);
+    }
+  } catch (err) {
+    console.error('Failed to upload invoice:', err);
+    alert('Failed to upload invoice');
+  }
+}
+
+function refreshInvoices() {
+  loadStats();
+  loadInvoices();
+}
+
+function filterTable() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const rows = document.querySelectorAll('#invoiceTableBody tr');
+
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(search) ? '' : 'none';
+  });
+}
+</script>

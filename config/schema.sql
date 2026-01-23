@@ -904,3 +904,56 @@ ORDER BY
         WHEN 'low' THEN 4
     END,
     p.predicted_date;
+
+-- =====================================================
+-- INBOUND INVOICE PROCESSING
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS inbound_invoices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    -- Email metadata
+    email_from TEXT,
+    email_subject TEXT,
+    email_date TEXT,
+
+    -- Attachment info
+    attachment_path TEXT,
+    attachment_name TEXT,
+
+    -- OCR results
+    ocr_text TEXT,
+    extracted_data TEXT, -- JSON with all extracted fields
+
+    -- Extracted key fields (for quick filtering)
+    vendor_name TEXT,
+    invoice_number TEXT,
+    invoice_date TEXT,
+    total_amount REAL,
+
+    -- Matching
+    matched_forklift_id TEXT REFERENCES forklifts(id),
+    match_confidence REAL,
+
+    -- Processing results
+    maintenance_record_id INTEGER REFERENCES maintenance_records(id),
+
+    -- Status tracking
+    status TEXT DEFAULT 'pending' CHECK (status IN (
+        'pending', 'processing', 'parsed', 'ready_for_review',
+        'approved', 'auto_processed', 'rejected', 'error'
+    )),
+    error_message TEXT,
+    rejection_reason TEXT,
+
+    -- Audit
+    approved_at TEXT,
+    approved_by INTEGER REFERENCES users(id),
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_inbound_invoices_status ON inbound_invoices(status);
+CREATE INDEX idx_inbound_invoices_vendor ON inbound_invoices(vendor_name);
+CREATE INDEX idx_inbound_invoices_invoice_num ON inbound_invoices(invoice_number);
+CREATE INDEX idx_inbound_invoices_created ON inbound_invoices(created_at);

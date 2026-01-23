@@ -335,6 +335,16 @@ router.get('/settings', (req, res) => {
     });
 });
 
+// Inbound Invoice Processing page (admin)
+router.get('/inbound-invoices', (req, res) => {
+    const forklifts = db.forklifts.findAll({});
+
+    res.render('admin/inbound-invoices', {
+        title: 'Inbound Invoice Processing',
+        forklifts
+    });
+});
+
 // Predictions page
 router.get('/predictions', (req, res) => {
     const locations = db.locations.findAll();

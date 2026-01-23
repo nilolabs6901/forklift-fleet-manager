@@ -66,6 +66,7 @@ const invoiceRoutes = require('./invoices');
 const chatRoutes = require('./chat');
 const predictionRoutes = require('./predictions');
 const shareRoutes = require('./share');
+const inboundInvoiceRoutes = require('./inbound-invoices');
 
 // Mount routes
 router.use('/forklifts', forkliftRoutes);
@@ -79,6 +80,7 @@ router.use('/invoices', invoiceRoutes);
 router.use('/chat', chatRoutes);
 router.use('/predictions', predictionRoutes);
 router.use('/share', shareRoutes);
+router.use('/inbound-invoices', inboundInvoiceRoutes);
 
 // API info endpoint
 router.get('/', (req, res) => {
