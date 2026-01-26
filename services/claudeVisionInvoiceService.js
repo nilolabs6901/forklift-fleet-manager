@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const db = require('../config/sqlite-database');
+const invoicePdfService = require('./invoicePdfService');
 
 // Directory for storing incoming invoice attachments
 const INBOUND_DIR = path.join(__dirname, '../uploads/inbound-invoices');
@@ -891,12 +892,16 @@ Only return the JSON object, no other text.`;
             invoiceData.model = randomForklift.model;
         }
 
+        // Generate PDF for the invoice
+        const pdfPath = invoicePdfService.generateInvoicePdf(invoiceData, invoiceData.invoiceNumber);
+        invoiceData.pdfPath = pdfPath;
+
         // Create the inbound record
         const inboundRecord = this.createInboundRecord({
             email_from: `invoices@${invoiceData.vendor.toLowerCase().replace(/\s+/g, '')}.com`,
             email_subject: `Invoice ${invoiceData.invoiceNumber} - ${invoiceData.description}`,
             email_date: new Date().toISOString(),
-            attachment_path: null,
+            attachment_path: pdfPath,
             attachment_name: `${invoiceData.invoiceNumber}.pdf`,
             status: 'processing'
         });

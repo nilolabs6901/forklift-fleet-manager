@@ -401,12 +401,15 @@ function updateInvoiceDetailPanel(invoice) {
     ? `<span class="badge ${invoice.match_confidence >= 0.8 ? 'bg-success' : 'bg-warning'}">${Math.round(invoice.match_confidence * 100)}% confidence</span>`
     : '<span class="badge bg-secondary">No match</span>';
 
+  const pdfLink = ext.pdfPath || invoice.attachment_path;
+
   panel.innerHTML = `
     <div class="invoice-detail-card">
       <div class="d-flex justify-content-between align-items-start mb-3">
         <div>
           <h5 class="mb-1">${ext.vendor || invoice.vendor_name || 'Unknown Vendor'}</h5>
           <code class="fs-5">${ext.invoiceNumber || invoice.invoice_number || 'N/A'}</code>
+          ${pdfLink ? `<a href="${pdfLink}" target="_blank" class="btn btn-outline-danger btn-sm ms-2"><i class="bi bi-file-pdf me-1"></i>View PDF</a>` : ''}
         </div>
         <div class="text-end">
           ${statusBadge}
@@ -636,13 +639,18 @@ function renderRecentInvoices(invoices) {
     const statusBadge = getStatusBadgeHtml(inv.status);
     const confidence = inv.match_confidence ? Math.round(inv.match_confidence * 100) + '%' : '-';
     const confidenceClass = inv.match_confidence >= 0.8 ? 'text-success' : inv.match_confidence >= 0.5 ? 'text-warning' : 'text-muted';
+    const ext = inv.extracted_data || {};
+    const pdfLink = ext.pdfPath || inv.attachment_path;
+    const invoiceNumHtml = pdfLink
+      ? `<a href="${pdfLink}" target="_blank" class="text-decoration-none"><code>${inv.invoice_number || '-'}</code> <i class="bi bi-file-pdf text-danger"></i></a>`
+      : `<code>${inv.invoice_number || '-'}</code>`;
 
     return `
       <tr>
         <td>${statusBadge}</td>
         <td>${formatDate(inv.created_at)}</td>
         <td>${inv.vendor_name || inv.email_from || '-'}</td>
-        <td><code>${inv.invoice_number || '-'}</code></td>
+        <td>${invoiceNumHtml}</td>
         <td>${inv.total_amount ? '$' + inv.total_amount.toFixed(2) : '-'}</td>
         <td>${inv.matched_unit_id || '-'}</td>
         <td class="${confidenceClass} fw-bold">${confidence}</td>
