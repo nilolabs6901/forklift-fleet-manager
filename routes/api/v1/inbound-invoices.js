@@ -1,6 +1,7 @@
 /**
  * Inbound Invoice API Routes
  * Handles incoming invoices from email/webhooks and invoice review queue
+ * Now supports Claude Vision API for intelligent invoice parsing
  */
 
 const express = require('express');
@@ -9,6 +10,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const inboundInvoiceService = require('../../../services/inboundInvoiceService');
+const claudeVisionService = require('../../../services/claudeVisionInvoiceService');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -383,6 +385,121 @@ router.post('/test/ocr', upload.single('image'), async (req, res) => {
                 extractedData,
                 matchedForklift
             }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// =================== CLAUDE VISION ENDPOINTS ===================
+
+/**
+ * POST /api/v1/inbound-invoices/vision/upload
+ * Upload and process invoice using Claude Vision API
+ */
+router.post('/vision/upload', upload.single('invoice'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: 'No file uploaded'
+            });
+        }
+
+        const emailData = {
+            from: req.body.vendor || 'Manual Upload (Vision)',
+            subject: req.body.description || 'Invoice processed with Claude Vision',
+            date: new Date().toISOString()
+        };
+
+        const attachmentData = fs.readFileSync(req.file.path);
+
+        const result = await claudeVisionService.processInboundInvoice(
+            emailData,
+            attachmentData,
+            req.file.originalname
+        );
+
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        console.error('[Claude Vision Upload Error]', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// =================== DEMO & SIMULATION ENDPOINTS ===================
+
+/**
+ * POST /api/v1/inbound-invoices/demo/simulate
+ * Simulate receiving an invoice via email (for demo purposes)
+ */
+router.post('/demo/simulate', async (req, res) => {
+    try {
+        const { type } = req.body;
+        const result = await claudeVisionService.simulateEmailInvoice(type || 'random');
+
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        console.error('[Demo Simulation Error]', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/v1/inbound-invoices/poll
+ * Long-polling endpoint for real-time updates
+ */
+router.get('/poll', (req, res) => {
+    try {
+        const lastId = parseInt(req.query.lastId) || 0;
+        const newInvoices = claudeVisionService.getInvoicesSince(lastId);
+        const stats = claudeVisionService.getStats();
+        const latestId = claudeVisionService.getLatestInvoiceId();
+
+        res.json({
+            success: true,
+            data: {
+                newInvoices: newInvoices.map(inv => ({
+                    ...inv,
+                    extracted_data: inv.extracted_data ? JSON.parse(inv.extracted_data) : null
+                })),
+                stats,
+                latestId
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/v1/inbound-invoices/latest-id
+ * Get the latest invoice ID for initializing polling
+ */
+router.get('/latest-id', (req, res) => {
+    try {
+        const latestId = claudeVisionService.getLatestInvoiceId();
+        res.json({
+            success: true,
+            data: { latestId }
         });
     } catch (error) {
         res.status(500).json({

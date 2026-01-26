@@ -1,0 +1,699 @@
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-1">
+        <i class="bi bi-envelope-open me-2"></i>Email-to-Invoice Workflow
+      </h1>
+      <p class="text-muted mb-0">Real-time invoice processing powered by Claude Vision AI</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <div class="form-check form-switch me-3">
+        <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
+        <label class="form-check-label" for="autoRefreshToggle">Auto-refresh</label>
+      </div>
+      <span class="badge bg-success" id="connectionStatus">
+        <i class="bi bi-wifi me-1"></i>Connected
+      </span>
+    </div>
+  </div>
+
+  <!-- Demo Controls Panel -->
+  <div class="card glass-card mb-4 border-primary">
+    <div class="card-header bg-primary bg-opacity-10">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="bi bi-play-circle me-2"></i>Demo Controls
+        </h5>
+        <span class="badge bg-info">Simulate Email Invoices</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <p class="text-muted mb-3">Click a button below to simulate receiving an invoice via email. The system will process it using Claude Vision AI and show real-time updates.</p>
+      <div class="row g-3">
+        <div class="col-md-3">
+          <button class="btn btn-outline-success w-100 py-3" onclick="simulateInvoice('preventive_maintenance')" id="btnPreventive">
+            <i class="bi bi-wrench-adjustable d-block fs-2 mb-2"></i>
+            <strong>Preventive Maintenance</strong>
+            <div class="small text-muted mt-1">Scheduled PM service invoice</div>
+          </button>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-outline-warning w-100 py-3" onclick="simulateInvoice('repair_service')" id="btnRepair">
+            <i class="bi bi-tools d-block fs-2 mb-2"></i>
+            <strong>Repair Service</strong>
+            <div class="small text-muted mt-1">Emergency repair invoice</div>
+          </button>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-outline-info w-100 py-3" onclick="simulateInvoice('inspection')" id="btnInspection">
+            <i class="bi bi-clipboard-check d-block fs-2 mb-2"></i>
+            <strong>Safety Inspection</strong>
+            <div class="small text-muted mt-1">OSHA inspection invoice</div>
+          </button>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-primary w-100 py-3" onclick="simulateInvoice('random')" id="btnRandom">
+            <i class="bi bi-shuffle d-block fs-2 mb-2"></i>
+            <strong>Random Invoice</strong>
+            <div class="small text-muted mt-1">Any type of invoice</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Processing Activity Stream -->
+  <div class="row g-4">
+    <!-- Left: Live Activity Feed -->
+    <div class="col-lg-5">
+      <div class="card glass-card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="bi bi-activity me-2"></i>Live Activity Feed
+          </h5>
+          <span class="badge bg-secondary" id="activityCount">0 events</span>
+        </div>
+        <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;" id="activityFeed">
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
+            <p>No activity yet. Simulate an invoice to see real-time processing!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Latest Processed Invoice Detail -->
+    <div class="col-lg-7">
+      <div class="card glass-card h-100">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-file-earmark-text me-2"></i>Latest Processed Invoice
+          </h5>
+        </div>
+        <div class="card-body" id="invoiceDetailPanel">
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-file-earmark-x fs-1 mb-3 d-block"></i>
+            <p>No invoice processed yet. Simulate one to see the extracted data.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-3 mt-4">
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-primary" id="statTotal">0</div>
+          <div class="text-muted small">Total Received</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-info" id="statProcessing">0</div>
+          <div class="text-muted small">Processing</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-warning" id="statPending">0</div>
+          <div class="text-muted small">Pending Review</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-success" id="statAutoProcessed">0</div>
+          <div class="text-muted small">Auto-Processed</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-danger" id="statRejected">0</div>
+          <div class="text-muted small">Rejected</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card glass-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold text-secondary" id="statTotalValue">$0</div>
+          <div class="text-muted small">Total Value</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Invoices Table -->
+  <div class="card glass-card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">
+        <i class="bi bi-table me-2"></i>Recent Invoices
+      </h5>
+      <a href="/inbound-invoices" class="btn btn-outline-primary btn-sm">
+        View All <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Status</th>
+              <th>Received</th>
+              <th>Vendor</th>
+              <th>Invoice #</th>
+              <th>Amount</th>
+              <th>Matched Unit</th>
+              <th>Confidence</th>
+            </tr>
+          </thead>
+          <tbody id="recentInvoicesBody">
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">
+                No invoices yet
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container for Notifications -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1070">
+  <div id="toastContainer"></div>
+</div>
+
+<style>
+.activity-item {
+  border-left: 3px solid #dee2e6;
+  padding: 12px 16px;
+  margin: 0;
+  transition: all 0.3s ease;
+}
+.activity-item:hover {
+  background-color: rgba(0,0,0,0.02);
+}
+.activity-item.new {
+  animation: slideIn 0.3s ease-out;
+  border-left-color: #0d6efd;
+  background-color: rgba(13, 110, 253, 0.05);
+}
+.activity-item.success {
+  border-left-color: #198754;
+}
+.activity-item.warning {
+  border-left-color: #ffc107;
+}
+.activity-item.info {
+  border-left-color: #0dcaf0;
+}
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.invoice-detail-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(248,249,250,0.9));
+  border-radius: 8px;
+  padding: 20px;
+}
+.line-item-row {
+  background-color: rgba(0,0,0,0.02);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+.pulse {
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+</style>
+
+<script>
+let lastInvoiceId = 0;
+let pollInterval = null;
+let activityItems = [];
+const MAX_ACTIVITY_ITEMS = 50;
+
+document.addEventListener('DOMContentLoaded', function() {
+  initializeDashboard();
+});
+
+async function initializeDashboard() {
+  // Get latest ID for polling
+  try {
+    const res = await fetch('/api/v1/inbound-invoices/latest-id');
+    const data = await res.json();
+    if (data.success) {
+      lastInvoiceId = data.data.latestId;
+    }
+  } catch (err) {
+    console.error('Failed to get latest ID:', err);
+  }
+
+  // Load initial stats
+  await loadStats();
+
+  // Load recent invoices
+  await loadRecentInvoices();
+
+  // Start polling
+  startPolling();
+}
+
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+
+  pollInterval = setInterval(async () => {
+    if (!document.getElementById('autoRefreshToggle').checked) return;
+
+    try {
+      const res = await fetch(`/api/v1/inbound-invoices/poll?lastId=${lastInvoiceId}`);
+      const data = await res.json();
+
+      if (data.success) {
+        // Update stats
+        updateStats(data.data.stats);
+
+        // Process new invoices
+        if (data.data.newInvoices && data.data.newInvoices.length > 0) {
+          for (const invoice of data.data.newInvoices) {
+            handleNewInvoice(invoice);
+          }
+          lastInvoiceId = data.data.latestId;
+          await loadRecentInvoices();
+        }
+      }
+    } catch (err) {
+      console.error('Poll error:', err);
+      document.getElementById('connectionStatus').className = 'badge bg-danger';
+      document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-wifi-off me-1"></i>Disconnected';
+    }
+  }, 2000); // Poll every 2 seconds
+}
+
+function handleNewInvoice(invoice) {
+  const ext = invoice.extracted_data || {};
+
+  // Add invoice activity
+  addActivityItem({
+    type: invoice.status === 'auto_processed' ? 'success' : 'info',
+    icon: invoice.status === 'auto_processed' ? 'bi-check-circle-fill' : 'bi-file-earmark-arrow-down',
+    title: invoice.status === 'auto_processed' ? 'Invoice Auto-Processed' : 'New Invoice Received',
+    message: `${invoice.vendor_name || 'Unknown Vendor'} - ${invoice.invoice_number || 'N/A'}`,
+    amount: invoice.total_amount,
+    matchedUnit: invoice.matched_unit_id,
+    confidence: invoice.match_confidence,
+    timestamp: new Date()
+  });
+
+  // If downtime was auto-created, add a separate activity item
+  if (ext.downtimeEvent) {
+    setTimeout(() => {
+      addActivityItem({
+        type: 'warning',
+        icon: 'bi-clock-history',
+        title: 'Downtime Auto-Recorded',
+        message: `${ext.downtimeEvent.duration_hours} hrs downtime for ${invoice.matched_unit_id || 'unit'}`,
+        downtimeCost: ext.downtimeEvent.downtime_cost,
+        rootCause: ext.downtimeEvent.root_cause,
+        timestamp: new Date()
+      });
+    }, 300); // Slight delay to show as separate event
+  }
+
+  // Update detail panel
+  updateInvoiceDetailPanel(invoice);
+
+  // Show toast
+  showNotificationToast(invoice);
+}
+
+function addActivityItem(item) {
+  activityItems.unshift(item);
+  if (activityItems.length > MAX_ACTIVITY_ITEMS) {
+    activityItems.pop();
+  }
+  renderActivityFeed();
+}
+
+function renderActivityFeed() {
+  const feed = document.getElementById('activityFeed');
+  document.getElementById('activityCount').textContent = `${activityItems.length} events`;
+
+  if (activityItems.length === 0) {
+    feed.innerHTML = `
+      <div class="text-center text-muted py-5">
+        <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
+        <p>No activity yet. Simulate an invoice to see real-time processing!</p>
+      </div>
+    `;
+    return;
+  }
+
+  feed.innerHTML = activityItems.map((item, index) => `
+    <div class="activity-item ${item.type} ${index === 0 ? 'new' : ''}">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <i class="bi ${item.icon} me-2 text-${item.type === 'success' ? 'success' : item.type === 'warning' ? 'warning' : 'primary'}"></i>
+          <strong>${item.title}</strong>
+        </div>
+        <small class="text-muted">${formatTime(item.timestamp)}</small>
+      </div>
+      <div class="mt-1 ms-4">
+        <div>${item.message}</div>
+        ${item.amount ? `<span class="badge bg-secondary me-1">$${item.amount.toFixed(2)}</span>` : ''}
+        ${item.matchedUnit ? `<span class="badge bg-info me-1">${item.matchedUnit}</span>` : ''}
+        ${item.confidence ? `<span class="badge ${item.confidence >= 0.8 ? 'bg-success' : 'bg-warning'}">${Math.round(item.confidence * 100)}% match</span>` : ''}
+        ${item.downtimeCost ? `<span class="badge bg-danger me-1">$${item.downtimeCost.toFixed(2)} downtime</span>` : ''}
+        ${item.rootCause ? `<span class="badge bg-secondary">${item.rootCause.replace(/_/g, ' ')}</span>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateInvoiceDetailPanel(invoice) {
+  const panel = document.getElementById('invoiceDetailPanel');
+  const ext = invoice.extracted_data || {};
+
+  const statusBadge = getStatusBadgeHtml(invoice.status);
+  const confidenceBadge = invoice.match_confidence
+    ? `<span class="badge ${invoice.match_confidence >= 0.8 ? 'bg-success' : 'bg-warning'}">${Math.round(invoice.match_confidence * 100)}% confidence</span>`
+    : '<span class="badge bg-secondary">No match</span>';
+
+  panel.innerHTML = `
+    <div class="invoice-detail-card">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <h5 class="mb-1">${ext.vendor || invoice.vendor_name || 'Unknown Vendor'}</h5>
+          <code class="fs-5">${ext.invoiceNumber || invoice.invoice_number || 'N/A'}</code>
+        </div>
+        <div class="text-end">
+          ${statusBadge}
+          <div class="mt-2">${confidenceBadge}</div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="text-muted small">Invoice Date</div>
+          <div class="fw-bold">${ext.invoiceDate || invoice.invoice_date || '-'}</div>
+        </div>
+        <div class="col-md-4">
+          <div class="text-muted small">PO Number</div>
+          <div class="fw-bold">${ext.poNumber || '-'}</div>
+        </div>
+        <div class="col-md-4">
+          <div class="text-muted small">Matched Unit</div>
+          <div class="fw-bold">${invoice.matched_unit_id || ext.unitReference || '-'}</div>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <div class="text-muted small mb-2">Description</div>
+        <div>${ext.description || 'No description'}</div>
+      </div>
+
+      ${ext.lineItems && ext.lineItems.length > 0 ? `
+        <div class="mb-4">
+          <div class="text-muted small mb-2">Line Items</div>
+          ${ext.lineItems.map(item => `
+            <div class="line-item-row d-flex justify-content-between">
+              <span>${item.description}</span>
+              <span class="fw-bold">$${item.total.toFixed(2)}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      <div class="row g-3 pt-3 border-top">
+        <div class="col-md-3">
+          <div class="text-muted small">Labor</div>
+          <div class="fs-5 fw-bold">$${(ext.laborCost || 0).toFixed(2)}</div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Parts</div>
+          <div class="fs-5 fw-bold">$${(ext.partsCost || 0).toFixed(2)}</div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Tax</div>
+          <div class="fs-5 fw-bold">$${(ext.tax || 0).toFixed(2)}</div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Total</div>
+          <div class="fs-4 fw-bold text-primary">$${(ext.totalAmount || invoice.total_amount || 0).toFixed(2)}</div>
+        </div>
+      </div>
+
+      ${ext.downtimeEvent ? `
+        <div class="mt-3 pt-3 border-top">
+          <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-clock-history text-warning me-2"></i>
+            <strong>Automatic Downtime Tracked</strong>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-3">
+              <div class="bg-warning bg-opacity-10 rounded p-2 text-center">
+                <div class="text-muted small">Duration</div>
+                <div class="fw-bold">${ext.downtimeEvent.duration_hours} hrs</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="bg-danger bg-opacity-10 rounded p-2 text-center">
+                <div class="text-muted small">Downtime Cost</div>
+                <div class="fw-bold text-danger">$${ext.downtimeEvent.downtime_cost.toFixed(2)}</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="bg-info bg-opacity-10 rounded p-2 text-center">
+                <div class="text-muted small">Type</div>
+                <div class="fw-bold">${ext.downtimeEvent.type}</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="bg-secondary bg-opacity-10 rounded p-2 text-center">
+                <div class="text-muted small">Root Cause</div>
+                <div class="fw-bold">${ext.downtimeEvent.root_cause.replace(/_/g, ' ')}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      ${ext.parsingMethod ? `
+        <div class="mt-3 pt-3 border-top">
+          <small class="text-muted">
+            <i class="bi bi-robot me-1"></i>
+            Parsed using: <strong>${ext.parsingMethod === 'claude_vision' ? 'Claude Vision AI' : ext.parsingMethod === 'demo_simulation' ? 'Demo Simulation' : 'Fallback Parser'}</strong>
+          </small>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function getStatusBadgeHtml(status) {
+  const badges = {
+    'pending': '<span class="badge bg-secondary">Pending</span>',
+    'processing': '<span class="badge bg-info pulse">Processing...</span>',
+    'parsed': '<span class="badge bg-primary">Parsed</span>',
+    'ready_for_review': '<span class="badge bg-warning text-dark">Needs Review</span>',
+    'approved': '<span class="badge bg-success">Approved</span>',
+    'auto_processed': '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Auto-Processed</span>',
+    'rejected': '<span class="badge bg-danger">Rejected</span>',
+    'error': '<span class="badge bg-danger">Error</span>'
+  };
+  return badges[status] || `<span class="badge bg-secondary">${status}</span>`;
+}
+
+async function simulateInvoice(type) {
+  const btnMap = {
+    preventive_maintenance: 'btnPreventive',
+    repair_service: 'btnRepair',
+    inspection: 'btnInspection',
+    random: 'btnRandom'
+  };
+
+  const btn = document.getElementById(btnMap[type]);
+  const originalContent = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+
+  // Add processing activity
+  addActivityItem({
+    type: 'info',
+    icon: 'bi-envelope-open',
+    title: 'Simulating Email Receipt',
+    message: `Processing ${type.replace(/_/g, ' ')} invoice...`,
+    timestamp: new Date()
+  });
+
+  try {
+    const res = await fetch('/api/v1/inbound-invoices/demo/simulate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      // Activity update is handled by polling
+      // But let's force an immediate update
+      lastInvoiceId = Math.max(lastInvoiceId, data.data.inboundId - 1);
+    } else {
+      addActivityItem({
+        type: 'warning',
+        icon: 'bi-exclamation-triangle',
+        title: 'Processing Error',
+        message: data.error || 'Failed to process invoice',
+        timestamp: new Date()
+      });
+    }
+  } catch (err) {
+    console.error('Simulation error:', err);
+    addActivityItem({
+      type: 'warning',
+      icon: 'bi-x-circle',
+      title: 'Simulation Failed',
+      message: err.message,
+      timestamp: new Date()
+    });
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalContent;
+  }
+}
+
+async function loadStats() {
+  try {
+    const res = await fetch('/api/v1/inbound-invoices/stats');
+    const data = await res.json();
+
+    if (data.success) {
+      updateStats(data.data);
+    }
+  } catch (err) {
+    console.error('Failed to load stats:', err);
+  }
+}
+
+function updateStats(stats) {
+  document.getElementById('statTotal').textContent = stats.total || 0;
+  document.getElementById('statProcessing').textContent = stats.processing || 0;
+  document.getElementById('statPending').textContent = stats.pending_review || 0;
+  document.getElementById('statAutoProcessed').textContent = stats.auto_processed || 0;
+  document.getElementById('statRejected').textContent = stats.rejected || 0;
+  document.getElementById('statTotalValue').textContent = '$' + (stats.total_value || 0).toLocaleString();
+
+  // Update connection status
+  document.getElementById('connectionStatus').className = 'badge bg-success';
+  document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-wifi me-1"></i>Connected';
+}
+
+async function loadRecentInvoices() {
+  try {
+    const res = await fetch('/api/v1/inbound-invoices?limit=10');
+    const data = await res.json();
+
+    if (data.success) {
+      renderRecentInvoices(data.data);
+    }
+  } catch (err) {
+    console.error('Failed to load recent invoices:', err);
+  }
+}
+
+function renderRecentInvoices(invoices) {
+  const tbody = document.getElementById('recentInvoicesBody');
+
+  if (!invoices || invoices.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No invoices yet</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = invoices.map(inv => {
+    const statusBadge = getStatusBadgeHtml(inv.status);
+    const confidence = inv.match_confidence ? Math.round(inv.match_confidence * 100) + '%' : '-';
+    const confidenceClass = inv.match_confidence >= 0.8 ? 'text-success' : inv.match_confidence >= 0.5 ? 'text-warning' : 'text-muted';
+
+    return `
+      <tr>
+        <td>${statusBadge}</td>
+        <td>${formatDate(inv.created_at)}</td>
+        <td>${inv.vendor_name || inv.email_from || '-'}</td>
+        <td><code>${inv.invoice_number || '-'}</code></td>
+        <td>${inv.total_amount ? '$' + inv.total_amount.toFixed(2) : '-'}</td>
+        <td>${inv.matched_unit_id || '-'}</td>
+        <td class="${confidenceClass} fw-bold">${confidence}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function showNotificationToast(invoice) {
+  const toastContainer = document.getElementById('toastContainer');
+  const toastId = `toast-${Date.now()}`;
+
+  const toastHtml = `
+    <div id="${toastId}" class="toast show" role="alert">
+      <div class="toast-header">
+        <i class="bi bi-file-earmark-check text-success me-2"></i>
+        <strong class="me-auto">Invoice Processed</strong>
+        <small>Just now</small>
+        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+      </div>
+      <div class="toast-body">
+        <strong>${invoice.vendor_name || 'Unknown Vendor'}</strong><br>
+        ${invoice.invoice_number || 'N/A'} - $${(invoice.total_amount || 0).toFixed(2)}
+        ${invoice.matched_unit_id ? `<br><span class="badge bg-info mt-1">${invoice.matched_unit_id}</span>` : ''}
+      </div>
+    </div>
+  `;
+
+  toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    const toast = document.getElementById(toastId);
+    if (toast) toast.remove();
+  }, 5000);
+}
+
+function formatTime(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  if (pollInterval) clearInterval(pollInterval);
+});
+</script>

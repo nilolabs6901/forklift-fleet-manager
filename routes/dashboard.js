@@ -201,10 +201,32 @@ router.get('/locations', (req, res) => {
     const locations = db.locations.findAll();
     const locationStats = db.locations.getStats();
 
+    // Get monthly maintenance costs by location
+    const monthlyMaintenanceCosts = db.maintenance.getMonthlyCostsByLocation(1);
+
+    // Create a map for quick lookup
+    const costsByLocationId = {};
+    monthlyMaintenanceCosts.forEach(cost => {
+        costsByLocationId[cost.location_id] = cost;
+    });
+
+    // Attach costs to each location
+    const locationsWithCosts = locations.map(loc => ({
+        ...loc,
+        monthly_maintenance_cost: costsByLocationId[loc.id]?.total_cost || 0,
+        monthly_service_count: costsByLocationId[loc.id]?.service_count || 0
+    }));
+
+    // Calculate total monthly spend
+    const totalMonthlySpend = monthlyMaintenanceCosts.reduce((sum, c) => sum + (c.total_cost || 0), 0);
+
     res.render('locations/index', {
         title: 'Locations',
-        locations,
-        locationStats
+        locations: locationsWithCosts,
+        locationStats: {
+            ...locationStats,
+            total_monthly_spend: totalMonthlySpend
+        }
     });
 });
 
@@ -342,6 +364,13 @@ router.get('/inbound-invoices', (req, res) => {
     res.render('admin/inbound-invoices', {
         title: 'Inbound Invoice Processing',
         forklifts
+    });
+});
+
+// Email-to-Invoice Workflow Demo page
+router.get('/invoice-workflow', (req, res) => {
+    res.render('admin/invoice-workflow', {
+        title: 'Email-to-Invoice Workflow'
     });
 });
 

@@ -57,6 +57,13 @@
             <span class="nav-text">Maintenance</span>
           </a>
         </li>
+        <li class="<%= currentPath.startsWith('/invoice-workflow') ? 'active' : '' %>">
+          <a href="/invoice-workflow">
+            <span class="nav-icon"><i class="bi bi-envelope-open"></i></span>
+            <span class="nav-text">Invoice Workflow</span>
+            <span class="nav-badge bg-success">Demo</span>
+          </a>
+        </li>
         <li class="<%= currentPath.startsWith('/alerts') ? 'active' : '' %>">
           <a href="/alerts">
             <span class="nav-icon"><i class="bi bi-bell-fill"></i></span>

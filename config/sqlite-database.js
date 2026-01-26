@@ -799,6 +799,27 @@ const dbApi = {
                 GROUP BY type
                 ORDER BY count DESC
             `).all();
+        },
+
+        /**
+         * Get monthly maintenance costs grouped by location
+         */
+        getMonthlyCostsByLocation(months = 1) {
+            return db.prepare(`
+                SELECT
+                    f.location_id,
+                    l.name as location_name,
+                    COUNT(*) as service_count,
+                    SUM(m.total_cost) as total_cost,
+                    SUM(m.labor_cost) as labor_cost,
+                    SUM(m.parts_cost) as parts_cost
+                FROM maintenance_records m
+                JOIN forklifts f ON m.forklift_id = f.id
+                JOIN locations l ON f.location_id = l.id
+                WHERE m.service_date >= date('now', '-' || ? || ' months')
+                GROUP BY f.location_id
+                ORDER BY total_cost DESC
+            `).all(months);
         }
     },
 
