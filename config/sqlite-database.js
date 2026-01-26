@@ -552,11 +552,14 @@ const dbApi = {
         findAll(options = {}) {
             let sql = `
                 SELECT m.*, f.model as forklift_model, l.name as location_name,
-                       u.first_name || ' ' || u.last_name as technician_full_name
+                       u.first_name || ' ' || u.last_name as technician_full_name,
+                       i.attachment_path as invoice_pdf_path,
+                       i.id as inbound_invoice_id
                 FROM maintenance_records m
                 LEFT JOIN forklifts f ON m.forklift_id = f.id
                 LEFT JOIN locations l ON f.location_id = l.id
                 LEFT JOIN users u ON m.technician_id = u.id
+                LEFT JOIN inbound_invoices i ON m.invoice_number = i.invoice_number
                 WHERE 1=1
             `;
             const params = [];

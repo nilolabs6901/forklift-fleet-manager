@@ -421,6 +421,7 @@
                     <th>Technician</th>
                     <th>Cost</th>
                     <th>Hours</th>
+                    <th>Invoice</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -436,6 +437,17 @@
                       <td><%= record.technician_name || record.technician || '-' %></td>
                       <td><%= record.total_cost ? '$' + record.total_cost.toLocaleString() : '-' %></td>
                       <td><%= record.hours_at_service ? record.hours_at_service.toLocaleString() : '-' %></td>
+                      <td>
+                        <% if (record.invoice_pdf_path) { %>
+                          <a href="<%= record.invoice_pdf_path %>" target="_blank" class="btn btn-sm btn-outline-danger" title="View Invoice PDF">
+                            <i class="bi bi-file-pdf"></i>
+                          </a>
+                        <% } else if (record.invoice_number) { %>
+                          <span class="text-muted small"><%= record.invoice_number %></span>
+                        <% } else { %>
+                          <span class="text-muted">-</span>
+                        <% } %>
+                      </td>
                     </tr>
                   <% }) %>
                 </tbody>
