@@ -456,7 +456,7 @@ class InboundInvoiceService {
      */
     getInboundInvoices(filters = {}) {
         let sql = `
-            SELECT i.*, f.unit_id as matched_unit_id, f.model as matched_model
+            SELECT i.*, f.id as matched_unit_id, f.model as matched_model
             FROM inbound_invoices i
             LEFT JOIN forklifts f ON i.matched_forklift_id = f.id
             WHERE 1=1
@@ -488,7 +488,7 @@ class InboundInvoiceService {
      */
     getInboundInvoice(id) {
         return db.raw.prepare(`
-            SELECT i.*, f.unit_id as matched_unit_id, f.model as matched_model
+            SELECT i.*, f.id as matched_unit_id, f.model as matched_model
             FROM inbound_invoices i
             LEFT JOIN forklifts f ON i.matched_forklift_id = f.id
             WHERE i.id = ?

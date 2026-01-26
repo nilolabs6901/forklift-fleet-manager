@@ -124,7 +124,8 @@ class ClaudeVisionInvoiceService {
                 const maintenanceRecord = this.createMaintenanceFromInvoice(extractedData, matchedForklift.id, inboundRecord.id);
                 this.updateInboundRecord(inboundRecord.id, {
                     maintenance_record_id: maintenanceRecord.id,
-                    status: 'auto_processed'
+                    status: 'auto_processed',
+                    extracted_data: JSON.stringify(extractedData) // Re-save with downtimeEvent included
                 });
                 extractedData.maintenanceRecord = maintenanceRecord;
             }
@@ -934,7 +935,8 @@ Only return the JSON object, no other text.`;
             const maintenanceRecord = this.createMaintenanceFromInvoice(invoiceData, matchedForklift.id, inboundRecord.id);
             this.updateInboundRecord(inboundRecord.id, {
                 maintenance_record_id: maintenanceRecord.id,
-                status: 'auto_processed'
+                status: 'auto_processed',
+                extracted_data: JSON.stringify(invoiceData) // Re-save with downtimeEvent included
             });
             invoiceData.maintenanceRecord = maintenanceRecord;
         }
