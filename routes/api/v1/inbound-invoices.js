@@ -509,4 +509,83 @@ router.get('/latest-id', (req, res) => {
     }
 });
 
+/**
+ * GET /api/v1/inbound-invoices/generate-pdf/:maintenanceId
+ * Generate a PDF invoice for a maintenance record on-demand
+ */
+router.get('/generate-pdf/:maintenanceId', (req, res) => {
+    try {
+        const invoicePdfService = require('../../../services/invoicePdfService');
+        const db = require('../../../config/sqlite-database');
+
+        const maintenanceId = parseInt(req.params.maintenanceId);
+        const record = db.maintenance.findById(maintenanceId);
+
+        if (!record) {
+            return res.status(404).json({
+                success: false,
+                error: 'Maintenance record not found'
+            });
+        }
+
+        // Build invoice data from maintenance record
+        const invoiceData = {
+            vendor: record.service_provider || 'Service Provider',
+            invoiceNumber: record.invoice_number || `MR-${record.id}`,
+            invoiceDate: record.service_date || new Date().toISOString().split('T')[0],
+            poNumber: record.work_order_number || null,
+            location: record.location_name || 'Fleet Location',
+            unitReference: record.forklift_id,
+            make: null,
+            model: record.forklift_model || null,
+            serialNumber: null,
+            description: record.description || record.work_performed || 'Maintenance Service',
+            lineItems: [],
+            laborCost: record.labor_cost || 0,
+            partsCost: record.parts_cost || 0,
+            subtotal: (record.labor_cost || 0) + (record.parts_cost || 0),
+            tax: 0,
+            totalAmount: record.total_cost || 0
+        };
+
+        // Add line items if we have labor/parts breakdown
+        if (record.labor_cost > 0) {
+            invoiceData.lineItems.push({
+                description: `Labor - ${record.type || 'Service'}`,
+                quantity: record.labor_hours || 1,
+                unitPrice: record.labor_hours ? record.labor_cost / record.labor_hours : record.labor_cost,
+                total: record.labor_cost
+            });
+        }
+        if (record.parts_cost > 0) {
+            invoiceData.lineItems.push({
+                description: 'Parts & Materials',
+                quantity: 1,
+                unitPrice: record.parts_cost,
+                total: record.parts_cost
+            });
+        }
+        if (record.diagnostic_cost > 0) {
+            invoiceData.lineItems.push({
+                description: 'Diagnostic Fee',
+                quantity: 1,
+                unitPrice: record.diagnostic_cost,
+                total: record.diagnostic_cost
+            });
+        }
+
+        // Generate the PDF
+        const pdfPath = invoicePdfService.generateInvoicePdf(invoiceData, `maintenance_${maintenanceId}`);
+
+        // Redirect to the generated PDF
+        res.redirect(pdfPath);
+    } catch (error) {
+        console.error('[Generate PDF Error]', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;

@@ -439,11 +439,15 @@
                       <td><%= record.hours_at_service ? record.hours_at_service.toLocaleString() : '-' %></td>
                       <td>
                         <% if (record.invoice_pdf_path) { %>
-                          <a href="<%= record.invoice_pdf_path %>" target="_blank" class="btn btn-sm btn-outline-danger" title="View Invoice PDF">
-                            <i class="bi bi-file-pdf"></i>
+                          <a href="<%= record.invoice_pdf_path %>" target="_blank" class="text-decoration-none" title="View Invoice PDF">
+                            <code><%= record.invoice_number || 'View' %></code>
+                            <i class="bi bi-file-pdf text-danger ms-1"></i>
                           </a>
-                        <% } else if (record.invoice_number) { %>
-                          <span class="text-muted small"><%= record.invoice_number %></span>
+                        <% } else if (record.invoice_number || record.id) { %>
+                          <a href="/api/v1/inbound-invoices/generate-pdf/<%= record.id %>" target="_blank" class="text-decoration-none" title="Generate Invoice PDF">
+                            <code><%= record.invoice_number || 'Generate' %></code>
+                            <i class="bi bi-file-pdf text-danger ms-1"></i>
+                          </a>
                         <% } else { %>
                           <span class="text-muted">-</span>
                         <% } %>
