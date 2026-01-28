@@ -319,6 +319,109 @@
     background: #ccc;
 }
 
+/* Voice Toggle Button */
+.voice-toggle-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    margin-left: auto;
+    font-size: 16px;
+}
+
+.voice-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.voice-toggle-btn.unavailable {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.voice-toggle-btn.available {
+    opacity: 0.8;
+}
+
+.voice-toggle-btn.available:hover {
+    opacity: 1;
+}
+
+.voice-toggle-btn.active {
+    background: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.voice-toggle-btn.playing {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Message Speaker Button */
+.message-speaker-btn {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s ease;
+    font-size: 12px;
+}
+
+.chat-message.bot {
+    position: relative;
+}
+
+.chat-message.bot:hover .message-speaker-btn {
+    opacity: 1;
+}
+
+.message-speaker-btn:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+/* Chat Toast Notification */
+.chat-toast {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+.chat-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
 /* Mobile Responsive */
 @media (max-width: 480px) {
     .chat-widget {
@@ -336,5 +439,11 @@
     .chat-toggle-btn {
         width: 54px;
         height: 54px;
+    }
+
+    .voice-toggle-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
     }
 }

@@ -1,6 +1,7 @@
 /**
  * Fleet Manager AI Chat Widget
  * Helps users query and understand fleet data
+ * Includes voice response capability via Eleven Labs
  */
 
 class FleetChatWidget {
@@ -8,6 +9,9 @@ class FleetChatWidget {
         this.isOpen = false;
         this.isTyping = false;
         this.messages = [];
+        this.voiceEnabled = false;
+        this.isPlaying = false;
+        this.currentAudio = null;
         this.init();
     }
 
@@ -15,6 +19,7 @@ class FleetChatWidget {
         this.createWidget();
         this.attachEventListeners();
         this.addWelcomeMessage();
+        this.checkVoiceAvailability();
     }
 
     createWidget() {
@@ -30,6 +35,9 @@ class FleetChatWidget {
                         <h4>Fleet Assistant</h4>
                         <p>Ask me about your fleet data</p>
                     </div>
+                    <button class="voice-toggle-btn" id="voiceToggle" title="Toggle voice responses">
+                        <i class="bi bi-volume-mute-fill" id="voiceIcon"></i>
+                    </button>
                 </div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div class="chat-quick-actions" id="quickActions">
@@ -58,7 +66,9 @@ class FleetChatWidget {
             input: document.getElementById('chatInput'),
             sendBtn: document.getElementById('chatSendBtn'),
             toggle: document.getElementById('chatToggle'),
-            quickActions: document.getElementById('quickActions')
+            quickActions: document.getElementById('quickActions'),
+            voiceToggle: document.getElementById('voiceToggle'),
+            voiceIcon: document.getElementById('voiceIcon')
         };
     }
 
@@ -68,6 +78,9 @@ class FleetChatWidget {
         this.elements.input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.sendMessage();
         });
+
+        // Voice toggle
+        this.elements.voiceToggle.addEventListener('click', () => this.toggleVoice());
 
         // Quick action buttons
         this.elements.quickActions.querySelectorAll('.quick-action-btn').forEach(btn => {
@@ -79,12 +92,66 @@ class FleetChatWidget {
         });
     }
 
+    async checkVoiceAvailability() {
+        try {
+            const response = await fetch('/api/v1/chat/voice/status');
+            const result = await response.json();
+            if (result.available) {
+                this.elements.voiceToggle.classList.add('available');
+                this.elements.voiceToggle.title = 'Click to enable voice responses';
+            } else {
+                this.elements.voiceToggle.classList.add('unavailable');
+                this.elements.voiceToggle.title = 'Voice not configured';
+            }
+        } catch (e) {
+            this.elements.voiceToggle.classList.add('unavailable');
+        }
+    }
+
+    toggleVoice() {
+        if (this.elements.voiceToggle.classList.contains('unavailable')) {
+            this.showToast('Voice is not configured. Add ELEVEN_LABS_API_KEY to enable.');
+            return;
+        }
+
+        this.voiceEnabled = !this.voiceEnabled;
+        this.elements.voiceToggle.classList.toggle('active', this.voiceEnabled);
+
+        if (this.voiceEnabled) {
+            this.elements.voiceIcon.className = 'bi bi-volume-up-fill';
+            this.showToast('Voice responses enabled');
+        } else {
+            this.elements.voiceIcon.className = 'bi bi-volume-mute-fill';
+            this.stopAudio();
+            this.showToast('Voice responses disabled');
+        }
+    }
+
+    showToast(message) {
+        // Create a simple toast notification
+        const toast = document.createElement('div');
+        toast.className = 'chat-toast';
+        toast.textContent = message;
+        this.elements.window.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
+    }
+
     toggleChat() {
         this.isOpen = !this.isOpen;
         this.elements.window.classList.toggle('open', this.isOpen);
         this.elements.toggle.classList.toggle('active', this.isOpen);
         if (this.isOpen) {
             this.elements.input.focus();
+        } else {
+            this.stopAudio();
         }
     }
 
@@ -113,8 +180,28 @@ What would you like to know?`);
             html += this.formatDataCard(data);
         }
 
+        // Add speaker button for bot messages
+        if (type === 'bot' && this.elements.voiceToggle.classList.contains('available')) {
+            const msgId = `msg-${Date.now()}`;
+            html += `<button class="message-speaker-btn" data-msgid="${msgId}" title="Play this message">
+                <i class="bi bi-volume-up"></i>
+            </button>`;
+            messageEl.dataset.content = content;
+            messageEl.id = msgId;
+        }
+
         messageEl.innerHTML = html;
         this.elements.messages.appendChild(messageEl);
+
+        // Attach speaker button listener
+        const speakerBtn = messageEl.querySelector('.message-speaker-btn');
+        if (speakerBtn) {
+            speakerBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.playMessageAudio(content);
+            });
+        }
+
         this.scrollToBottom();
     }
 
@@ -199,6 +286,11 @@ What would you like to know?`);
 
             if (result.success) {
                 this.addMessage('bot', result.response, result.data);
+
+                // Auto-play voice if enabled
+                if (this.voiceEnabled) {
+                    this.playMessageAudio(result.response);
+                }
             } else {
                 this.addMessage('bot', 'Sorry, I encountered an error. Please try again.');
             }
@@ -208,6 +300,61 @@ What would you like to know?`);
         }
 
         this.elements.sendBtn.disabled = false;
+    }
+
+    async playMessageAudio(text) {
+        // Stop any currently playing audio
+        this.stopAudio();
+
+        try {
+            this.isPlaying = true;
+            this.updatePlayingState(true);
+
+            const response = await fetch('/api/v1/chat/voice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+
+            if (!response.ok) {
+                throw new Error('Voice generation failed');
+            }
+
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+
+            this.currentAudio = new Audio(audioUrl);
+            this.currentAudio.onended = () => {
+                this.isPlaying = false;
+                this.updatePlayingState(false);
+                URL.revokeObjectURL(audioUrl);
+            };
+            this.currentAudio.onerror = () => {
+                this.isPlaying = false;
+                this.updatePlayingState(false);
+                URL.revokeObjectURL(audioUrl);
+            };
+
+            await this.currentAudio.play();
+        } catch (error) {
+            console.error('Voice playback error:', error);
+            this.isPlaying = false;
+            this.updatePlayingState(false);
+            this.showToast('Failed to play voice response');
+        }
+    }
+
+    stopAudio() {
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+            this.currentAudio = null;
+        }
+        this.isPlaying = false;
+        this.updatePlayingState(false);
+    }
+
+    updatePlayingState(playing) {
+        this.elements.voiceToggle.classList.toggle('playing', playing);
     }
 }
 
