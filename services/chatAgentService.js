@@ -9,8 +9,8 @@ const predictiveService = require('./predictiveMaintenanceService');
 // Knowledge Base - Complete system documentation
 const KNOWLEDGE_BASE = {
     system_overview: {
-        keywords: ['what is', 'about', 'system', 'fleet manager', 'overview', 'purpose'],
-        content: `**Forklift Fleet Manager** is a comprehensive fleet management system designed to help you:
+        keywords: ['what is', 'about', 'system', 'fleet shield', 'overview', 'purpose'],
+        content: `**Fleet Shield** is a comprehensive fleet management system designed to help you:
 
 • **Track Equipment** - Monitor all forklifts across multiple locations
 • **Manage Maintenance** - Schedule and track preventive and repair maintenance
@@ -564,7 +564,7 @@ class ChatAgentService {
      */
     getGreetingResponse() {
         const greetings = [
-            `Hello! I'm your Fleet Manager assistant. I can help you with:\n\n• **Data queries** - "Fleet summary", "High risk forklifts", "Active alerts"\n• **System help** - "How do I add maintenance?", "What is risk score?"\n• **Finding info** - "Find FL-0001", "Forklifts in Dallas"\n\nWhat would you like to know?`,
+            `Hello! I'm your Fleet Shield assistant. I can help you with:\n\n• **Data queries** - "Fleet summary", "High risk forklifts", "Active alerts"\n• **System help** - "How do I add maintenance?", "What is risk score?"\n• **Finding info** - "Find FL-0001", "Forklifts in Dallas"\n\nWhat would you like to know?`,
             `Hi there! How can I help you today? I can answer questions about your fleet data or explain how to use the system.`,
             `Hello! I'm here to help. Ask me about fleet status, maintenance, alerts, or how to use any feature.`
         ];
@@ -1162,7 +1162,7 @@ ${active.length > 0 ? '**Active Incidents:**\n' + active.slice(0, 3).map(d =>
      */
     getHelpMessage() {
         return {
-            response: `I'm your Fleet Manager assistant! Here's what I can help with:
+            response: `I'm your Fleet Shield assistant! Here's what I can help with:
 
 **📊 Fleet Data Queries:**
 • "Fleet summary" - Overall fleet statistics

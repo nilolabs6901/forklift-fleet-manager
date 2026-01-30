@@ -37,7 +37,7 @@ class FleetChatWidget {
                         <i class="bi bi-robot"></i>
                     </div>
                     <div class="chat-header-info">
-                        <h4>Fleet Assistant</h4>
+                        <h4>Fleet Shield Assistant</h4>
                         <p>Ask me about your fleet data</p>
                     </div>
                 </div>

@@ -123,7 +123,7 @@ class InvoicePdfService {
         doc.fillColor('#6b7280').fontSize(9).font('Helvetica')
            .text('BILL TO', 60, y + 10);
         doc.fillColor('#1f2937').fontSize(11).font('Helvetica-Bold')
-           .text('Fleet Manager Operations', 60, y + 25);
+           .text('Fleet Shield Operations', 60, y + 25);
         doc.fontSize(10).font('Helvetica')
            .text(data.location || 'Main Warehouse', 60, y + 40);
         doc.text('Accounts Payable Department', 60, y + 55);

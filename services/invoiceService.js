@@ -48,7 +48,7 @@ function generateInvoicePDF(maintenanceRecord, forklift, location) {
         doc.text(`Work Order: ${maintenanceRecord.work_order_number || 'N/A'}`, 400, 110);
 
         // Company info
-        doc.fontSize(12).font('Helvetica-Bold').text('Fleet Manager Pro', 50, 80);
+        doc.fontSize(12).font('Helvetica-Bold').text('Fleet Shield Pro', 50, 80);
         doc.fontSize(10).font('Helvetica');
         doc.text('123 Industrial Way', 50, 95);
         doc.text('Fleet City, FC 12345', 50, 110);
