@@ -1,7 +1,7 @@
 /**
  * Fleet Manager AI Chat Widget
  * Helps users query and understand fleet data
- * Includes voice response capability via Eleven Labs
+ * Includes voice input (speech-to-text) and voice output (Eleven Labs)
  */
 
 class FleetChatWidget {
@@ -9,9 +9,13 @@ class FleetChatWidget {
         this.isOpen = false;
         this.isTyping = false;
         this.messages = [];
-        this.voiceEnabled = false;
+        this.voiceOutputEnabled = false;
         this.isPlaying = false;
         this.currentAudio = null;
+        this.isListening = false;
+        this.recognition = null;
+        this.voiceAvailable = false;
+        this.speechRecognitionAvailable = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
         this.init();
     }
 
@@ -20,6 +24,7 @@ class FleetChatWidget {
         this.attachEventListeners();
         this.addWelcomeMessage();
         this.checkVoiceAvailability();
+        this.initSpeechRecognition();
     }
 
     createWidget() {
@@ -35,10 +40,30 @@ class FleetChatWidget {
                         <h4>Fleet Assistant</h4>
                         <p>Ask me about your fleet data</p>
                     </div>
-                    <button class="voice-toggle-btn" id="voiceToggle" title="Toggle voice responses">
-                        <i class="bi bi-volume-mute-fill" id="voiceIcon"></i>
+                </div>
+
+                <!-- Voice Controls Bar - Prominent placement -->
+                <div class="voice-controls-bar" id="voiceControlsBar">
+                    <button class="voice-control-btn" id="micBtn" title="Click to speak">
+                        <i class="bi bi-mic-fill" id="micIcon"></i>
+                        <span class="voice-label">Speak</span>
+                    </button>
+                    <div class="voice-divider"></div>
+                    <button class="voice-control-btn" id="speakerBtn" title="Toggle voice responses">
+                        <i class="bi bi-volume-mute-fill" id="speakerIcon"></i>
+                        <span class="voice-label">Listen</span>
                     </button>
                 </div>
+
+                <!-- Listening indicator -->
+                <div class="listening-indicator" id="listeningIndicator">
+                    <div class="listening-pulse"></div>
+                    <span>Listening... Speak now</span>
+                    <button class="stop-listening-btn" id="stopListeningBtn">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+
                 <div class="chat-messages" id="chatMessages"></div>
                 <div class="chat-quick-actions" id="quickActions">
                     <button class="quick-action-btn" data-query="fleet summary">Fleet Summary</button>
@@ -47,6 +72,9 @@ class FleetChatWidget {
                     <button class="quick-action-btn" data-query="active alerts">Active Alerts</button>
                 </div>
                 <div class="chat-input-container">
+                    <button class="mic-input-btn" id="micInputBtn" title="Voice input">
+                        <i class="bi bi-mic-fill"></i>
+                    </button>
                     <input type="text" class="chat-input" id="chatInput" placeholder="Ask about your fleet..." autocomplete="off">
                     <button class="chat-send-btn" id="chatSendBtn">
                         <i class="bi bi-send-fill"></i>
@@ -67,8 +95,14 @@ class FleetChatWidget {
             sendBtn: document.getElementById('chatSendBtn'),
             toggle: document.getElementById('chatToggle'),
             quickActions: document.getElementById('quickActions'),
-            voiceToggle: document.getElementById('voiceToggle'),
-            voiceIcon: document.getElementById('voiceIcon')
+            voiceControlsBar: document.getElementById('voiceControlsBar'),
+            micBtn: document.getElementById('micBtn'),
+            micIcon: document.getElementById('micIcon'),
+            speakerBtn: document.getElementById('speakerBtn'),
+            speakerIcon: document.getElementById('speakerIcon'),
+            listeningIndicator: document.getElementById('listeningIndicator'),
+            stopListeningBtn: document.getElementById('stopListeningBtn'),
+            micInputBtn: document.getElementById('micInputBtn')
         };
     }
 
@@ -79,8 +113,11 @@ class FleetChatWidget {
             if (e.key === 'Enter') this.sendMessage();
         });
 
-        // Voice toggle
-        this.elements.voiceToggle.addEventListener('click', () => this.toggleVoice());
+        // Voice controls
+        this.elements.micBtn.addEventListener('click', () => this.toggleListening());
+        this.elements.micInputBtn.addEventListener('click', () => this.toggleListening());
+        this.elements.speakerBtn.addEventListener('click', () => this.toggleVoiceOutput());
+        this.elements.stopListeningBtn.addEventListener('click', () => this.stopListening());
 
         // Quick action buttons
         this.elements.quickActions.querySelectorAll('.quick-action-btn').forEach(btn => {
@@ -92,43 +129,138 @@ class FleetChatWidget {
         });
     }
 
+    initSpeechRecognition() {
+        if (!this.speechRecognitionAvailable) {
+            this.elements.micBtn.classList.add('unavailable');
+            this.elements.micInputBtn.classList.add('unavailable');
+            this.elements.micBtn.title = 'Speech recognition not supported in this browser';
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        this.recognition = new SpeechRecognition();
+        this.recognition.continuous = false;
+        this.recognition.interimResults = true;
+        this.recognition.lang = 'en-US';
+
+        this.recognition.onstart = () => {
+            this.isListening = true;
+            this.elements.micBtn.classList.add('listening');
+            this.elements.micInputBtn.classList.add('listening');
+            this.elements.micIcon.className = 'bi bi-mic-fill';
+            this.elements.listeningIndicator.classList.add('show');
+        };
+
+        this.recognition.onresult = (event) => {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+            this.elements.input.value = transcript;
+
+            // If final result, send the message
+            if (event.results[event.results.length - 1].isFinal) {
+                setTimeout(() => {
+                    if (this.elements.input.value.trim()) {
+                        this.sendMessage();
+                    }
+                }, 500);
+            }
+        };
+
+        this.recognition.onend = () => {
+            this.isListening = false;
+            this.elements.micBtn.classList.remove('listening');
+            this.elements.micInputBtn.classList.remove('listening');
+            this.elements.listeningIndicator.classList.remove('show');
+        };
+
+        this.recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            this.isListening = false;
+            this.elements.micBtn.classList.remove('listening');
+            this.elements.micInputBtn.classList.remove('listening');
+            this.elements.listeningIndicator.classList.remove('show');
+
+            if (event.error === 'not-allowed') {
+                this.showToast('Microphone access denied. Please allow microphone access.');
+            } else if (event.error !== 'aborted') {
+                this.showToast('Speech recognition error. Please try again.');
+            }
+        };
+
+        this.elements.micBtn.classList.add('available');
+        this.elements.micInputBtn.classList.add('available');
+    }
+
+    toggleListening() {
+        if (!this.speechRecognitionAvailable || !this.recognition) {
+            this.showToast('Speech recognition not supported in this browser');
+            return;
+        }
+
+        if (this.isListening) {
+            this.stopListening();
+        } else {
+            this.startListening();
+        }
+    }
+
+    startListening() {
+        if (this.recognition && !this.isListening) {
+            try {
+                this.recognition.start();
+            } catch (e) {
+                console.error('Failed to start recognition:', e);
+            }
+        }
+    }
+
+    stopListening() {
+        if (this.recognition && this.isListening) {
+            this.recognition.stop();
+        }
+    }
+
     async checkVoiceAvailability() {
         try {
             const response = await fetch('/api/v1/chat/voice/status');
             const result = await response.json();
             if (result.available) {
-                this.elements.voiceToggle.classList.add('available');
-                this.elements.voiceToggle.title = 'Click to enable voice responses';
+                this.voiceAvailable = true;
+                this.elements.speakerBtn.classList.add('available');
+                this.elements.speakerBtn.title = 'Click to enable voice responses';
             } else {
-                this.elements.voiceToggle.classList.add('unavailable');
-                this.elements.voiceToggle.title = 'Voice not configured';
+                this.elements.speakerBtn.classList.add('unavailable');
+                this.elements.speakerBtn.title = 'Voice not configured';
             }
         } catch (e) {
-            this.elements.voiceToggle.classList.add('unavailable');
+            this.elements.speakerBtn.classList.add('unavailable');
         }
     }
 
-    toggleVoice() {
-        if (this.elements.voiceToggle.classList.contains('unavailable')) {
-            this.showToast('Voice is not configured. Add ELEVEN_LABS_API_KEY to enable.');
+    toggleVoiceOutput() {
+        if (!this.voiceAvailable) {
+            this.showToast('Voice output not configured. Contact administrator.');
             return;
         }
 
-        this.voiceEnabled = !this.voiceEnabled;
-        this.elements.voiceToggle.classList.toggle('active', this.voiceEnabled);
+        this.voiceOutputEnabled = !this.voiceOutputEnabled;
+        this.elements.speakerBtn.classList.toggle('active', this.voiceOutputEnabled);
 
-        if (this.voiceEnabled) {
-            this.elements.voiceIcon.className = 'bi bi-volume-up-fill';
+        if (this.voiceOutputEnabled) {
+            this.elements.speakerIcon.className = 'bi bi-volume-up-fill';
+            this.elements.speakerBtn.querySelector('.voice-label').textContent = 'Listening';
             this.showToast('Voice responses enabled');
         } else {
-            this.elements.voiceIcon.className = 'bi bi-volume-mute-fill';
+            this.elements.speakerIcon.className = 'bi bi-volume-mute-fill';
+            this.elements.speakerBtn.querySelector('.voice-label').textContent = 'Listen';
             this.stopAudio();
             this.showToast('Voice responses disabled');
         }
     }
 
     showToast(message) {
-        // Create a simple toast notification
         const toast = document.createElement('div');
         toast.className = 'chat-toast';
         toast.textContent = message;
@@ -141,7 +273,7 @@ class FleetChatWidget {
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
-        }, 2000);
+        }, 2500);
     }
 
     toggleChat() {
@@ -152,6 +284,7 @@ class FleetChatWidget {
             this.elements.input.focus();
         } else {
             this.stopAudio();
+            this.stopListening();
         }
     }
 
@@ -164,7 +297,8 @@ class FleetChatWidget {
 • **Alerts** - View active alerts and issues
 • **Analytics** - Costs, downtime, and trends
 
-What would you like to know?`);
+🎤 **Click "Speak" to talk to me!**
+🔊 **Click "Listen" to hear my responses!**`);
     }
 
     addMessage(type, content, data = null) {
@@ -181,7 +315,7 @@ What would you like to know?`);
         }
 
         // Add speaker button for bot messages
-        if (type === 'bot' && this.elements.voiceToggle.classList.contains('available')) {
+        if (type === 'bot' && this.voiceAvailable) {
             const msgId = `msg-${Date.now()}`;
             html += `<button class="message-speaker-btn" data-msgid="${msgId}" title="Play this message">
                 <i class="bi bi-volume-up"></i>
@@ -206,7 +340,6 @@ What would you like to know?`);
     }
 
     formatMessage(text) {
-        // Convert markdown-style formatting
         return text
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -264,16 +397,13 @@ What would you like to know?`);
         const text = this.elements.input.value.trim();
         if (!text || this.isTyping) return;
 
-        // Add user message
         this.addMessage('user', text);
         this.elements.input.value = '';
         this.elements.sendBtn.disabled = true;
 
-        // Show typing indicator
         this.showTyping();
 
         try {
-            // Send to API
             const response = await fetch('/api/v1/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -287,8 +417,7 @@ What would you like to know?`);
             if (result.success) {
                 this.addMessage('bot', result.response, result.data);
 
-                // Auto-play voice if enabled
-                if (this.voiceEnabled) {
+                if (this.voiceOutputEnabled) {
                     this.playMessageAudio(result.response);
                 }
             } else {
@@ -303,7 +432,6 @@ What would you like to know?`);
     }
 
     async playMessageAudio(text) {
-        // Stop any currently playing audio
         this.stopAudio();
 
         try {
@@ -354,7 +482,7 @@ What would you like to know?`);
     }
 
     updatePlayingState(playing) {
-        this.elements.voiceToggle.classList.toggle('playing', playing);
+        this.elements.speakerBtn.classList.toggle('playing', playing);
     }
 }
 

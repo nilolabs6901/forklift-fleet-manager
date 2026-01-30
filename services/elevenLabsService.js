@@ -20,9 +20,7 @@ class ElevenLabsService {
         // Voice settings for natural speech
         this.voiceSettings = {
             stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.0,
-            use_speaker_boost: true
+            similarity_boost: 0.75
         };
 
         // Audio output directory
@@ -74,9 +72,11 @@ class ElevenLabsService {
 
         const requestBody = JSON.stringify({
             text: truncatedText,
-            model_id: 'eleven_monolingual_v1',
+            model_id: 'eleven_multilingual_v2',
             voice_settings: this.voiceSettings
         });
+
+        console.log('Eleven Labs TTS request - voice:', voice, 'text length:', truncatedText.length);
 
         return new Promise((resolve, reject) => {
             const options = {
@@ -159,6 +159,12 @@ class ElevenLabsService {
         try {
             const audioBuffer = await this.textToSpeech(text);
 
+            if (!audioBuffer || audioBuffer.length === 0) {
+                throw new Error('Empty audio response from Eleven Labs');
+            }
+
+            console.log('Eleven Labs TTS success - audio size:', audioBuffer.length, 'bytes');
+
             res.set({
                 'Content-Type': 'audio/mpeg',
                 'Content-Length': audioBuffer.length,
@@ -167,8 +173,10 @@ class ElevenLabsService {
 
             res.send(audioBuffer);
         } catch (error) {
-            console.error('Voice stream error:', error);
-            res.status(500).json({ error: 'Failed to generate voice' });
+            console.error('Voice stream error:', error.message);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Failed to generate voice: ' + error.message });
+            }
         }
     }
 

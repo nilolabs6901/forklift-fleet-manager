@@ -52,7 +52,7 @@
     right: 0;
     width: 380px;
     max-width: calc(100vw - 48px);
-    height: 520px;
+    height: 560px;
     max-height: calc(100vh - 120px);
     background: white;
     border-radius: 16px;
@@ -111,6 +111,202 @@
     opacity: 0.9;
 }
 
+/* ============================================
+   VOICE CONTROLS BAR - Prominent placement
+   ============================================ */
+.voice-controls-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #f0f2ff 0%, #e8e0ff 100%);
+    border-bottom: 2px solid #e0e4ff;
+}
+
+.voice-control-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 20px;
+    background: white;
+    color: #667eea;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(102, 126, 234, 0.15);
+    flex: 1;
+    justify-content: center;
+}
+
+.voice-control-btn i {
+    font-size: 18px;
+}
+
+.voice-control-btn .voice-label {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.voice-control-btn:hover {
+    background: #667eea;
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    transform: translateY(-1px);
+}
+
+.voice-control-btn.unavailable {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.voice-control-btn.unavailable:hover {
+    background: white;
+    color: #667eea;
+    transform: none;
+    box-shadow: 0 2px 6px rgba(102, 126, 234, 0.15);
+}
+
+.voice-control-btn.available {
+    opacity: 1;
+}
+
+/* Mic button active (listening) */
+.voice-control-btn.listening {
+    background: #ef4444;
+    color: white;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
+    animation: micPulse 1.5s infinite;
+}
+
+@keyframes micPulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3); }
+    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.1); }
+}
+
+/* Speaker button active */
+.voice-control-btn.active {
+    background: #667eea;
+    color: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+}
+
+.voice-control-btn.playing {
+    animation: speakerPulse 1s infinite;
+}
+
+@keyframes speakerPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.voice-divider {
+    width: 1px;
+    height: 28px;
+    background: #d0d4ff;
+    margin: 0 8px;
+}
+
+/* ============================================
+   LISTENING INDICATOR
+   ============================================ */
+.listening-indicator {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-bottom: 1px solid #fecaca;
+    color: #dc2626;
+    font-size: 13px;
+    font-weight: 500;
+    animation: fadeIn 0.3s ease;
+}
+
+.listening-indicator.show {
+    display: flex;
+}
+
+.listening-pulse {
+    width: 12px;
+    height: 12px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: listeningPulse 1s infinite;
+}
+
+@keyframes listeningPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.6; }
+}
+
+.stop-listening-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ef4444;
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.stop-listening-btn:hover {
+    background: #dc2626;
+    transform: scale(1.1);
+}
+
+/* ============================================
+   MIC INPUT BUTTON (next to text input)
+   ============================================ */
+.mic-input-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f0f2ff;
+    border: 2px solid #e0e4ff;
+    color: #667eea;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.mic-input-btn:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.mic-input-btn.listening {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+    animation: micPulse 1.5s infinite;
+}
+
+.mic-input-btn.unavailable {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.mic-input-btn.unavailable:hover {
+    background: #f0f2ff;
+    color: #667eea;
+    border-color: #e0e4ff;
+}
+
 /* Chat Messages */
 .chat-messages {
     flex: 1;
@@ -142,6 +338,7 @@
     align-self: flex-start;
     border-bottom-left-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    position: relative;
 }
 
 .chat-message.user {
@@ -235,6 +432,7 @@
     background: white;
     display: flex;
     gap: 8px;
+    align-items: center;
 }
 
 .chat-input {
@@ -263,6 +461,7 @@
     align-items: center;
     justify-content: center;
     transition: transform 0.2s;
+    flex-shrink: 0;
 }
 
 .chat-send-btn:hover {
@@ -319,54 +518,6 @@
     background: #ccc;
 }
 
-/* Voice Toggle Button */
-.voice-toggle-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    margin-left: auto;
-    font-size: 16px;
-}
-
-.voice-toggle-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.voice-toggle-btn.unavailable {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.voice-toggle-btn.available {
-    opacity: 0.8;
-}
-
-.voice-toggle-btn.available:hover {
-    opacity: 1;
-}
-
-.voice-toggle-btn.active {
-    background: rgba(255, 255, 255, 0.4);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-}
-
-.voice-toggle-btn.playing {
-    animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
-
 /* Message Speaker Button */
 .message-speaker-btn {
     position: absolute;
@@ -385,10 +536,6 @@
     opacity: 0;
     transition: all 0.2s ease;
     font-size: 12px;
-}
-
-.chat-message.bot {
-    position: relative;
 }
 
 .chat-message.bot:hover .message-speaker-btn {
@@ -441,9 +588,11 @@
         height: 54px;
     }
 
-    .voice-toggle-btn {
-        width: 32px;
-        height: 32px;
-        font-size: 14px;
+    .voice-control-btn {
+        padding: 6px 14px;
+    }
+
+    .voice-control-btn .voice-label {
+        font-size: 12px;
     }
 }
