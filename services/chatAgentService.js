@@ -330,32 +330,48 @@ class ChatAgentService {
         this.intents = {
             fleet_summary: [
                 /fleet\s*(summary|overview|status)/i,
-                /how many\s*(forklifts|units)/i,
+                /how many\s*(forklifts|units|total)/i,
                 /total\s*(fleet|forklifts|units)/i,
                 /fleet\s*stats/i,
-                /give me (a |the )?(summary|overview)/i
+                /give me (a |the )?(summary|overview)/i,
+                /how many\s*(active|total)\s*(units|forklifts)/i,
+                /total\s*active\s*(units|forklifts)/i,
+                /number\s*of\s*(forklifts|units)/i,
+                /count\s*(of\s*)?(forklifts|units)/i
             ],
             high_risk: [
                 /high\s*risk/i,
                 /critical\s*(risk|units|forklifts)/i,
                 /risky\s*(units|forklifts)/i,
                 /at\s*risk/i,
-                /danger(ous)?\s*(units|forklifts)/i
+                /danger(ous)?\s*(units|forklifts)/i,
+                /which.*(high|critical)\s*risk/i,
+                /risk\s*(report|breakdown|distribution)/i
             ],
             maintenance_due: [
                 /maintenance\s*(due|overdue|upcoming|scheduled)/i,
                 /service\s*(due|needed|required)/i,
                 /needs?\s*(service|maintenance)/i,
                 /upcoming\s*(service|maintenance)/i,
-                /overdue/i
+                /overdue/i,
+                /how many.*(maintenance|service)/i,
+                /recent\s*(maintenance|service)/i,
+                /maintenance\s*(count|total|number)/i
             ],
             active_alerts: [
                 /active\s*alerts?/i,
                 /current\s*alerts?/i,
                 /(show|list|get)\s*alerts?/i,
                 /open\s*alerts?/i,
-                /alert\s*(status|summary)/i,
-                /any\s*alerts?/i
+                /alert\s*(status|summary|count|total|number)/i,
+                /any\s*alerts?/i,
+                /how many\s*alerts?/i,
+                /number\s*of\s*alerts?/i,
+                /total\s*(recent\s*)?alerts?/i,
+                /recent\s*alerts?/i,
+                /alerts?\s*(in|on)\s*(the\s*)?(system|fleet)/i,
+                /count\s*(of\s*)?alerts?/i,
+                /tell\s*me.*alerts/i
             ],
             find_forklift: [
                 /find\s*(forklift|unit)/i,
@@ -467,13 +483,9 @@ class ChatAgentService {
             return await this.findForklift(entities, trimmedMessage);
         }
 
-        // Check for system help questions
-        const helpTopic = this.findHelpTopic(trimmedMessage);
-        if (helpTopic) {
-            return { response: helpTopic.content };
-        }
-
-        // Classify data query intent
+        // IMPORTANT: Classify data query intent FIRST before knowledge base
+        // This ensures questions like "how many alerts" query real data
+        // instead of returning static help text
         const intent = this.classifyIntent(trimmedMessage);
 
         let response;
@@ -521,7 +533,7 @@ class ChatAgentService {
                 }
                 break;
             default:
-                // Try knowledge base one more time
+                // No data intent matched - try knowledge base for help topics
                 const kb = this.findHelpTopic(trimmedMessage);
                 if (kb) {
                     response = { response: kb.content };
