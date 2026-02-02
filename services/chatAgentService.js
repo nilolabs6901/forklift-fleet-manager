@@ -413,6 +413,27 @@ class ChatAgentService {
                 /failure\s*pattern/i,
                 /usage\s*rate/i
             ],
+            transfer_equipment: [
+                /transfer\s*(forklift|unit|equipment)/i,
+                /move\s*(forklift|unit|equipment)/i,
+                /relocate\s*(forklift|unit|equipment)/i,
+                /send\s*(forklift|unit|equipment)/i,
+                /transfer\s*[A-Z]{2}-\d+/i,
+                /move\s*[A-Z]{2}-\d+/i,
+                /(forklift|unit|equipment)\s*transfer/i,
+                /transfer.*to\s/i,
+                /move.*to\s/i,
+                /reassign\s*(forklift|unit|equipment)/i
+            ],
+            transfer_history: [
+                /transfer\s*history/i,
+                /transfer\s*log/i,
+                /recent\s*transfers?/i,
+                /equipment\s*moves?/i,
+                /location\s*changes?/i,
+                /how many\s*transfers?/i,
+                /where\s*(has|did).*moved/i
+            ],
             help: [
                 /^help$/i,
                 /what can you/i,
@@ -518,6 +539,12 @@ class ChatAgentService {
             case 'predictions':
                 response = await this.getPredictions(entities);
                 break;
+            case 'transfer_equipment':
+                response = await this.initiateTransfer(entities, trimmedMessage);
+                break;
+            case 'transfer_history':
+                response = await this.getTransferHistory(entities, trimmedMessage);
+                break;
             case 'help':
                 response = this.getHelpMessage();
                 break;
@@ -564,7 +591,7 @@ class ChatAgentService {
      */
     getGreetingResponse() {
         const greetings = [
-            `Hello! I'm your Fleet Shield assistant. I can help you with:\n\n• **Data queries** - "Fleet summary", "High risk forklifts", "Active alerts"\n• **System help** - "How do I add maintenance?", "What is risk score?"\n• **Finding info** - "Find FL-0001", "Forklifts in Dallas"\n\nWhat would you like to know?`,
+            `Hello! I'm your Fleet Shield assistant. I can help you with:\n\n• **Data queries** - "Fleet summary", "High risk forklifts", "Active alerts"\n• **Transfers** - "Transfer FL-0001 to Dallas", "Recent transfers"\n• **System help** - "How do I add maintenance?", "What is risk score?"\n• **Finding info** - "Find FL-0001", "Forklifts in Dallas"\n\nWhat would you like to know?`,
             `Hi there! How can I help you today? I can answer questions about your fleet data or explain how to use the system.`,
             `Hello! I'm here to help. Ask me about fleet status, maintenance, alerts, or how to use any feature.`
         ];
@@ -1178,6 +1205,11 @@ ${active.length > 0 ? '**Active Incidents:**\n' + active.slice(0, 3).map(d =>
 • "Predictions for FL-0001" - Unit-specific forecast
 • "What needs attention?" - Fleet-wide analysis
 
+**🔄 Equipment Transfers:**
+• "Transfer FL-0001 to Dallas" - Move equipment
+• "Recent transfers" - View transfer history
+• "Transfer history for FL-0001" - Unit transfer log
+
 **❓ System Help:**
 • "How do I add maintenance?" - Step-by-step guides
 • "What is risk score?" - Feature explanations
@@ -1273,6 +1305,151 @@ What would you like to know?`
             return {
                 response: `I encountered an error generating predictions. Please try again or view the [Dashboard](/) for prediction data.`
             };
+        }
+    }
+
+    /**
+     * Initiate equipment transfer via chat
+     */
+    async initiateTransfer(entities, message) {
+        try {
+            // Parse the message for forklift ID and destination
+            const forkliftIdMatch = message.match(/([A-Z]{2}-\d{3,4})/i);
+            const forkliftId = forkliftIdMatch ? forkliftIdMatch[1].toUpperCase() : entities.forkliftId;
+
+            if (!forkliftId) {
+                // No forklift specified - show instructions
+                return {
+                    response: `To transfer equipment, I need the forklift ID and destination. Try:\n\n• **"Transfer FL-0001 to Dallas"**\n• **"Move FL-0023 to Atlanta warehouse"**\n\nOr you can use the Transfer button on any [forklift's detail page](/forklifts).`
+                };
+            }
+
+            const forklift = db.forklifts.findById(forkliftId);
+            if (!forklift) {
+                return { response: `Forklift **${forkliftId}** was not found. Please check the ID and try again.\n\n[View Fleet Inventory](/forklifts)` };
+            }
+
+            // Try to find the destination location from the message
+            const locations = db.locations.findAll();
+            let targetLocation = null;
+
+            // Match location by name or city (case-insensitive)
+            const lowerMessage = message.toLowerCase();
+            for (const loc of locations) {
+                const locName = (loc.name || '').toLowerCase();
+                const locCity = (loc.city || '').toLowerCase();
+                if (locName && lowerMessage.includes(locName)) {
+                    targetLocation = loc;
+                    break;
+                }
+                if (locCity && lowerMessage.includes(locCity)) {
+                    targetLocation = loc;
+                    break;
+                }
+            }
+
+            if (!targetLocation) {
+                // No destination found - list available locations
+                let response = `I can transfer **${forkliftId}** (currently at **${forklift.location_name || 'Unassigned'}**). Which location should I send it to?\n\n**Available Locations:**\n`;
+                locations.forEach(loc => {
+                    if (loc.id !== forklift.location_id) {
+                        response += `• **${loc.name}** - ${loc.city}, ${loc.state}\n`;
+                    }
+                });
+                response += `\nTry: **"Transfer ${forkliftId} to [location name]"**`;
+                return { response };
+            }
+
+            if (targetLocation.id === forklift.location_id) {
+                return { response: `**${forkliftId}** is already at **${targetLocation.name}**. No transfer needed.` };
+            }
+
+            // Parse reason from message
+            let reason = 'other';
+            if (/rebalanc/i.test(message)) reason = 'rebalancing';
+            else if (/maintenance|repair|service/i.test(message)) reason = 'maintenance';
+            else if (/demand|workload|busy/i.test(message)) reason = 'demand';
+            else if (/clos/i.test(message)) reason = 'closure';
+            else if (/assign|new/i.test(message)) reason = 'new_assignment';
+
+            // Execute the transfer
+            const transfer = db.transfers.create({
+                forklift_id: forkliftId,
+                from_location_id: forklift.location_id || null,
+                to_location_id: targetLocation.id,
+                reason: reason
+            });
+
+            // Update forklift location
+            db.forklifts.update(forkliftId, { location_id: targetLocation.id });
+
+            // Audit log
+            db.audit.log({
+                action: 'update',
+                entity_type: 'forklift',
+                entity_id: forkliftId,
+                old_values: { location_id: forklift.location_id },
+                new_values: { location_id: targetLocation.id },
+                changed_fields: ['location_id']
+            });
+
+            const fromName = forklift.location_name || 'Unassigned';
+            return {
+                response: `Transfer completed!\n\n**${forkliftId}** has been moved:\n**From:** ${fromName}\n**To:** ${targetLocation.name} (${targetLocation.city}, ${targetLocation.state})\n**Reason:** ${reason.replace('_', ' ')}\n\n[View ${forkliftId}](/forklifts/${forkliftId})`
+            };
+        } catch (error) {
+            console.error('Transfer error:', error);
+            return {
+                response: `I encountered an error processing the transfer. Please try using the Transfer button on the [forklift's detail page](/forklifts).`
+            };
+        }
+    }
+
+    /**
+     * Get transfer history
+     */
+    async getTransferHistory(entities, message) {
+        try {
+            const forkliftId = entities.forkliftId;
+
+            if (forkliftId) {
+                // Transfer history for a specific forklift
+                const transfers = db.transfers.findByForklift(forkliftId, { limit: 10 });
+
+                if (transfers.length === 0) {
+                    return { response: `No transfer history found for **${forkliftId}**.\n\n[View ${forkliftId}](/forklifts/${forkliftId})` };
+                }
+
+                let response = `**Transfer history for ${forkliftId}** (${transfers.length} records):\n\n`;
+                transfers.forEach(t => {
+                    const date = t.transfer_date ? new Date(t.transfer_date).toLocaleDateString() : '-';
+                    const from = t.from_location_name || 'Unassigned';
+                    response += `• **${date}:** ${from} → ${t.to_location_name} _(${(t.reason || 'other').replace('_', ' ')})_\n`;
+                });
+
+                response += `\n[View ${forkliftId}](/forklifts/${forkliftId})`;
+                return { response };
+            }
+
+            // Fleet-wide recent transfers
+            const recentTransfers = db.transfers.findAll({ limit: 10 });
+            const count30d = db.transfers.getRecentCount(30);
+
+            if (recentTransfers.length === 0) {
+                return { response: `No equipment transfers have been recorded yet.` };
+            }
+
+            let response = `**Recent Equipment Transfers** (${count30d} in the last 30 days):\n\n`;
+            recentTransfers.slice(0, 8).forEach(t => {
+                const date = t.transfer_date ? new Date(t.transfer_date).toLocaleDateString() : '-';
+                const from = t.from_location_name || 'Unassigned';
+                response += `• **${date}** - [${t.forklift_id}](/forklifts/${t.forklift_id}): ${from} → ${t.to_location_name} _(${(t.reason || 'other').replace('_', ' ')})_\n`;
+            });
+
+            return { response };
+        } catch (error) {
+            console.error('Transfer history error:', error);
+            return { response: `I encountered an error fetching transfer history. Please try again.` };
         }
     }
 

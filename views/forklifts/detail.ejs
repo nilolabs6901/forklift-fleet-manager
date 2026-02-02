@@ -17,6 +17,9 @@
       </span>
     </div>
     <div>
+      <button class="btn btn-outline-info me-2" data-bs-toggle="modal" data-bs-target="#transferModal">
+        <i class="bi bi-arrow-left-right"></i> Transfer
+      </button>
       <a href="/forklifts/<%= forklift.id %>/edit" class="btn btn-outline-secondary me-2">
         <i class="bi bi-pencil"></i> Edit
       </a>
@@ -508,6 +511,59 @@
       </div>
       <% } %>
 
+      <!-- Transfer History -->
+      <div class="glass-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Transfer History</h5>
+          <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#transferModal">
+            <i class="bi bi-plus"></i> New Transfer
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <% const transfers = transferHistory || []; %>
+          <% if (transfers.length === 0) { %>
+            <div class="empty-state py-5">
+              <i class="bi bi-arrow-left-right display-4 text-muted"></i>
+              <p class="mt-2 text-muted">No transfer history</p>
+            </div>
+          <% } else { %>
+            <div class="transfer-timeline p-3">
+              <% transfers.forEach((transfer, index) => { %>
+                <div class="transfer-entry <%= index === 0 ? 'latest' : '' %>">
+                  <div class="transfer-dot"></div>
+                  <div class="transfer-content">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <strong>
+                          <% if (transfer.from_location_name) { %>
+                            <%= transfer.from_location_name %>
+                          <% } else { %>
+                            <span class="text-muted">Unassigned</span>
+                          <% } %>
+                          <i class="bi bi-arrow-right mx-2 text-info"></i>
+                          <%= transfer.to_location_name %>
+                        </strong>
+                        <% if (transfer.reason) { %>
+                          <span class="badge bg-<%= transfer.reason === 'maintenance' ? 'warning' : transfer.reason === 'closure' ? 'danger' : transfer.reason === 'demand' ? 'primary' : 'secondary' %> ms-2">
+                            <%= transfer.reason.replace('_', ' ') %>
+                          </span>
+                        <% } %>
+                      </div>
+                      <small class="text-muted text-nowrap ms-3">
+                        <%= transfer.transfer_date ? new Date(transfer.transfer_date).toLocaleDateString() : '-' %>
+                      </small>
+                    </div>
+                    <% if (transfer.notes) { %>
+                      <p class="mb-0 mt-1 small text-muted"><%= transfer.notes %></p>
+                    <% } %>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
       <!-- Hour Logs -->
       <div class="glass-card">
         <div class="card-header">
@@ -593,7 +649,104 @@
   </div>
 </div>
 
+<!-- Transfer Modal -->
+<div class="modal fade" id="transferModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title"><i class="bi bi-arrow-left-right me-2"></i>Transfer Equipment</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="transferForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Current Location</label>
+            <input type="text" class="form-control" value="<%= forklift.location_name || 'Unassigned' %>" readonly>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Destination Location <span class="text-danger">*</span></label>
+            <select class="form-select" name="to_location_id" required>
+              <option value="">Select destination...</option>
+              <% (allLocations || []).forEach(loc => { %>
+                <% if (loc.id !== forklift.location_id) { %>
+                  <option value="<%= loc.id %>"><%= loc.name %> - <%= loc.city %>, <%= loc.state %></option>
+                <% } %>
+              <% }) %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Reason</label>
+            <select class="form-select" name="reason">
+              <option value="rebalancing">Fleet Rebalancing</option>
+              <option value="demand">Demand / Workload</option>
+              <option value="maintenance">Maintenance Required</option>
+              <option value="new_assignment">New Assignment</option>
+              <option value="closure">Location Closure</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Notes</label>
+            <textarea class="form-control" name="notes" rows="3" placeholder="Optional transfer notes..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-info text-white">
+            <i class="bi bi-arrow-left-right me-1"></i> Confirm Transfer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <style>
+  /* Transfer Timeline Styles */
+  .transfer-timeline {
+    position: relative;
+  }
+
+  .transfer-entry {
+    position: relative;
+    padding-left: 24px;
+    padding-bottom: 16px;
+    border-left: 2px solid #e2e8f0;
+    margin-left: 8px;
+  }
+
+  .transfer-entry:last-child {
+    border-left-color: transparent;
+    padding-bottom: 0;
+  }
+
+  .transfer-entry .transfer-dot {
+    position: absolute;
+    left: -7px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #94a3b8;
+    border: 2px solid #fff;
+  }
+
+  .transfer-entry.latest .transfer-dot {
+    background: #0dcaf0;
+    box-shadow: 0 0 0 3px rgba(13, 202, 240, 0.2);
+  }
+
+  .transfer-content {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+
+  .transfer-entry.latest .transfer-content {
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+  }
+
   /* Component Health Styles */
   .component-health-grid {
     display: grid;
@@ -722,6 +875,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       } catch (error) {
         showToast('Error updating hours', 'danger');
+      }
+    });
+  }
+
+  // Transfer Form
+  const transferForm = document.getElementById('transferForm');
+  if (transferForm) {
+    transferForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+
+      try {
+        const response = await fetch('/api/v1/forklifts/<%= forklift.id %>/transfer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to_location_id: parseInt(formData.get('to_location_id')),
+            reason: formData.get('reason'),
+            notes: formData.get('notes')
+          })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          showToast('Equipment transferred successfully', 'success');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          showToast(result.error || 'Transfer failed', 'danger');
+        }
+      } catch (error) {
+        showToast('Error processing transfer', 'danger');
       }
     });
   }

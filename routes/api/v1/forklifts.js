@@ -265,6 +265,76 @@ router.get('/:id/alerts', (req, res) => {
     }
 });
 
+// =================== TRANSFER ENDPOINTS ===================
+
+// POST /api/v1/forklifts/:id/transfer - Transfer forklift to new location
+router.post('/:id/transfer', (req, res) => {
+    try {
+        const forklift = db.forklifts.findById(req.params.id);
+        if (!forklift) {
+            return res.status(404).json({ success: false, error: 'Forklift not found' });
+        }
+
+        if (!req.body.to_location_id) {
+            return res.status(400).json({ success: false, error: 'Destination location is required' });
+        }
+
+        const toLocationId = parseInt(req.body.to_location_id);
+
+        // Validate destination location exists
+        const toLocation = db.locations.findById(toLocationId);
+        if (!toLocation) {
+            return res.status(400).json({ success: false, error: 'Destination location not found' });
+        }
+
+        // Don't allow transfer to same location
+        if (forklift.location_id === toLocationId) {
+            return res.status(400).json({ success: false, error: 'Forklift is already at that location' });
+        }
+
+        // Create transfer record
+        const transfer = db.transfers.create({
+            forklift_id: req.params.id,
+            from_location_id: forklift.location_id || null,
+            to_location_id: toLocationId,
+            reason: req.body.reason || 'other',
+            notes: req.body.notes || null,
+            initiated_by: req.user?.id || null
+        });
+
+        // Update forklift location
+        const oldLocationId = forklift.location_id;
+        db.forklifts.update(req.params.id, { location_id: toLocationId });
+
+        // Audit log
+        db.audit.log({
+            user_id: req.user?.id,
+            action: 'update',
+            entity_type: 'forklift',
+            entity_id: req.params.id,
+            old_values: { location_id: oldLocationId },
+            new_values: { location_id: toLocationId },
+            changed_fields: ['location_id']
+        });
+
+        res.status(201).json({ success: true, data: transfer });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/v1/forklifts/:id/transfers - Get transfer history
+router.get('/:id/transfers', (req, res) => {
+    try {
+        const transfers = db.transfers.findByForklift(req.params.id, {
+            limit: req.query.limit ? parseInt(req.query.limit) : 50
+        });
+        res.json({ success: true, data: transfers });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // =================== DETAIL VIEW ENDPOINT ===================
 
 // GET /api/v1/forklifts/:id/detail - Get complete forklift detail view

@@ -514,6 +514,28 @@ CREATE TABLE IF NOT EXISTS replacement_recommendations (
 );
 
 -- =====================================================
+-- EQUIPMENT TRANSFERS
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS equipment_transfers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    forklift_id TEXT NOT NULL REFERENCES forklifts(id) ON DELETE CASCADE,
+    from_location_id INTEGER REFERENCES locations(id),
+    to_location_id INTEGER NOT NULL REFERENCES locations(id),
+    transfer_date TEXT DEFAULT (datetime('now')),
+    reason TEXT CHECK (reason IN ('rebalancing', 'maintenance', 'demand', 'closure', 'new_assignment', 'other')),
+    notes TEXT,
+    initiated_by INTEGER REFERENCES users(id),
+    status TEXT DEFAULT 'completed' CHECK (status IN ('pending', 'in_transit', 'completed', 'cancelled')),
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_transfers_forklift ON equipment_transfers(forklift_id);
+CREATE INDEX IF NOT EXISTS idx_transfers_date ON equipment_transfers(transfer_date);
+CREATE INDEX IF NOT EXISTS idx_transfers_from ON equipment_transfers(from_location_id);
+CREATE INDEX IF NOT EXISTS idx_transfers_to ON equipment_transfers(to_location_id);
+
+-- =====================================================
 -- AUDIT TRAIL
 -- =====================================================
 

@@ -1389,6 +1389,105 @@ const dbApi = {
         }
     },
 
+    // =================== EQUIPMENT TRANSFERS ===================
+    transfers: {
+        create(data) {
+            const stmt = db.prepare(`
+                INSERT INTO equipment_transfers (
+                    forklift_id, from_location_id, to_location_id,
+                    transfer_date, reason, notes, initiated_by, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+
+            const result = stmt.run(
+                data.forklift_id,
+                data.from_location_id || null,
+                data.to_location_id,
+                data.transfer_date || new Date().toISOString().slice(0, 19).replace('T', ' '),
+                data.reason || 'other',
+                data.notes || null,
+                data.initiated_by || null,
+                data.status || 'completed'
+            );
+
+            return this.findById(result.lastInsertRowid);
+        },
+
+        findById(id) {
+            return db.prepare(`
+                SELECT t.*,
+                    fl.name as from_location_name, fl.city as from_location_city,
+                    tl.name as to_location_name, tl.city as to_location_city
+                FROM equipment_transfers t
+                LEFT JOIN locations fl ON t.from_location_id = fl.id
+                LEFT JOIN locations tl ON t.to_location_id = tl.id
+                WHERE t.id = ?
+            `).get(id);
+        },
+
+        findByForklift(forkliftId, options = {}) {
+            let sql = `
+                SELECT t.*,
+                    fl.name as from_location_name, fl.city as from_location_city,
+                    tl.name as to_location_name, tl.city as to_location_city
+                FROM equipment_transfers t
+                LEFT JOIN locations fl ON t.from_location_id = fl.id
+                LEFT JOIN locations tl ON t.to_location_id = tl.id
+                WHERE t.forklift_id = ?
+                ORDER BY t.transfer_date DESC
+            `;
+            const params = [forkliftId];
+
+            if (options.limit) {
+                sql += ' LIMIT ?';
+                params.push(options.limit);
+            }
+
+            return db.prepare(sql).all(...params);
+        },
+
+        findAll(options = {}) {
+            let sql = `
+                SELECT t.*,
+                    f.model as forklift_model, f.manufacturer as forklift_manufacturer,
+                    fl.name as from_location_name, fl.city as from_location_city,
+                    tl.name as to_location_name, tl.city as to_location_city
+                FROM equipment_transfers t
+                JOIN forklifts f ON t.forklift_id = f.id
+                LEFT JOIN locations fl ON t.from_location_id = fl.id
+                LEFT JOIN locations tl ON t.to_location_id = tl.id
+                WHERE 1=1
+            `;
+            const params = [];
+
+            if (options.forkliftId) {
+                sql += ' AND t.forklift_id = ?';
+                params.push(options.forkliftId);
+            }
+            if (options.locationId) {
+                sql += ' AND (t.from_location_id = ? OR t.to_location_id = ?)';
+                params.push(options.locationId, options.locationId);
+            }
+
+            sql += ' ORDER BY t.transfer_date DESC';
+
+            if (options.limit) {
+                sql += ' LIMIT ?';
+                params.push(options.limit);
+            }
+
+            return db.prepare(sql).all(...params);
+        },
+
+        getRecentCount(days = 30) {
+            const result = db.prepare(`
+                SELECT COUNT(*) as count FROM equipment_transfers
+                WHERE transfer_date >= datetime('now', '-' || ? || ' days')
+            `).get(days);
+            return result ? result.count : 0;
+        }
+    },
+
     // =================== SETTINGS ===================
     settings: {
         get(key) {

@@ -102,6 +102,10 @@ router.get('/forklifts/:id', (req, res) => {
     // Get location with service center info
     const location = forklift.location_id ? db.locations.findById(forklift.location_id) : null;
 
+    // Get transfer history and all locations for transfer modal
+    const transferHistory = db.transfers.findByForklift(req.params.id, { limit: 20 });
+    const allLocations = db.locations.findAll();
+
     res.render('forklifts/detail', {
         title: `Forklift ${forklift.id}`,
         forklift,
@@ -111,7 +115,9 @@ router.get('/forklifts/:id', (req, res) => {
         hourLogs,
         riskAssessment,
         downtimeHistory,
-        hourTrends
+        hourTrends,
+        transferHistory,
+        allLocations
     });
 });
 
