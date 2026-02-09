@@ -11,6 +11,7 @@ const downtimeService = require('../services/downtimeService');
 const alertService = require('../services/alertService');
 const riskAssessmentService = require('../services/riskAssessmentService');
 const hourMeterService = require('../services/hourMeterService');
+const formulasPdfService = require('../services/formulasPdfService');
 
 // Dashboard home
 router.get('/', (req, res) => {
@@ -378,6 +379,17 @@ router.get('/invoice-workflow', (req, res) => {
     res.render('admin/invoice-workflow', {
         title: 'Email-to-Invoice Workflow'
     });
+});
+
+// System Formulas PDF Download
+router.get('/docs/formulas', (req, res) => {
+    try {
+        const pdfPath = formulasPdfService.generateFormulasPdf();
+        res.redirect(pdfPath);
+    } catch (error) {
+        console.error('Error generating formulas PDF:', error);
+        res.status(500).send('Error generating PDF');
+    }
 });
 
 // Predictions page
