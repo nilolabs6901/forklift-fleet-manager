@@ -1,0 +1,1 @@
+This repository belongs to Kenny. He runs Fleet Shield (forklift fleet management SaaS), Nilo Agency (B2B lead gen), and Combilift forklift sales in Florida. Kenny is non-technical. Keep all communication simple and non-technical.

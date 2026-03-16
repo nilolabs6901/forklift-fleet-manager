@@ -1,0 +1,50 @@
+name: Overnight Tasks
+
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+  repository_dispatch:
+    types: [run-tasks]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  process-tasks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code on tonight's tasks
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Read the CLAUDE.md file in this repository for context about who you're working for and how to behave.
+
+            Now, find all open GitHub Issues in this repository that have the label "tonight".
+
+            For each issue:
+            1. Read the issue title and body carefully to understand what task is being requested.
+            2. Complete the task to the best of your ability.
+               - If the task involves creating or editing files, make the changes on a new branch and open a pull request for Kenny to review. Name the branch after the issue (e.g., issue-5-add-landing-page).
+               - If the task is a question or research task, answer it directly in a comment.
+            3. After completing the task, post a comment on the issue in plain, non-technical English explaining what you did.
+            4. Remove the "tonight" label from the issue.
+            5. Add the "done" label to the issue.
+            6. If a task is unclear or you need more information, post a comment explaining what you need in simple English, remove the "tonight" label, and add the "needs-input" label instead.
+
+            Important rules:
+            - Never delete files unless the issue explicitly says to.
+            - Keep all communication simple and non-technical. Kenny is not a developer.
+            - If there are no issues labeled "tonight", just report that there were no tasks to process.
+            - Work through issues one at a time. Don't skip any.
