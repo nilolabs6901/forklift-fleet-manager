@@ -2,12 +2,55 @@
 -- SQLite Database for Enterprise Fleet Management
 
 -- =====================================================
+-- TENANTS (Multi-tenant client management)
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS tenants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL, -- URL-safe identifier (e.g., 'acme-logistics')
+
+    -- Contact info
+    contact_name TEXT,
+    contact_email TEXT,
+    contact_phone TEXT,
+
+    -- Inbound email routing
+    inbound_email_address TEXT UNIQUE, -- e.g., 'acme-invoices@fleetshield.com'
+    sender_domain TEXT, -- e.g., '@acmelogistics.com' for auto-matching forwarded emails
+
+    -- Subscription
+    status TEXT DEFAULT 'trial' CHECK (status IN ('trial', 'active', 'suspended', 'cancelled')),
+    plan_type TEXT DEFAULT 'trial' CHECK (plan_type IN ('trial', 'starter', 'professional', 'enterprise')),
+
+    -- Trial tracking
+    onboarded_at TEXT DEFAULT (datetime('now')),
+    trial_expires_at TEXT,
+    activated_at TEXT,
+
+    -- Feature flags
+    features TEXT DEFAULT '["invoices","risk_assessment","forklift_profiles"]', -- JSON array
+
+    -- Settings
+    settings TEXT, -- JSON for tenant-specific config
+
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_tenants_slug ON tenants(slug);
+CREATE INDEX IF NOT EXISTS idx_tenants_inbound_email ON tenants(inbound_email_address);
+CREATE INDEX IF NOT EXISTS idx_tenants_sender_domain ON tenants(sender_domain);
+CREATE INDEX IF NOT EXISTS idx_tenants_status ON tenants(status);
+
+-- =====================================================
 -- CORE TABLES
 -- =====================================================
 
 -- Users & Authentication
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER REFERENCES tenants(id),
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     first_name TEXT NOT NULL,
@@ -23,6 +66,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Locations / Warehouses
 CREATE TABLE IF NOT EXISTS locations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER REFERENCES tenants(id),
     name TEXT NOT NULL,
     address TEXT,
     city TEXT,
@@ -46,6 +90,7 @@ CREATE TABLE IF NOT EXISTS locations (
 -- Forklifts / Equipment
 CREATE TABLE IF NOT EXISTS forklifts (
     id TEXT PRIMARY KEY,
+    tenant_id INTEGER REFERENCES tenants(id),
     location_id INTEGER REFERENCES locations(id),
     model TEXT,
     manufacturer TEXT,
@@ -103,6 +148,7 @@ CREATE TABLE IF NOT EXISTS forklifts (
 
 CREATE TABLE IF NOT EXISTS hour_meter_readings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER REFERENCES tenants(id),
     forklift_id TEXT NOT NULL REFERENCES forklifts(id) ON DELETE CASCADE,
     reading REAL NOT NULL,
     previous_reading REAL,
@@ -139,6 +185,7 @@ CREATE INDEX idx_hour_readings_date ON hour_meter_readings(recorded_at);
 
 CREATE TABLE IF NOT EXISTS maintenance_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER REFERENCES tenants(id),
     forklift_id TEXT NOT NULL REFERENCES forklifts(id) ON DELETE CASCADE,
 
     -- Service details
@@ -250,6 +297,7 @@ CREATE TABLE IF NOT EXISTS maintenance_schedules (
 
 CREATE TABLE IF NOT EXISTS downtime_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER REFERENCES tenants(id),
     forklift_id TEXT NOT NULL REFERENCES forklifts(id) ON DELETE CASCADE,
 
     -- Event timing
@@ -293,6 +341,7 @@ CREATE INDEX idx_downtime_dates ON downtime_events(start_time, end_time);
 
 CREATE TABLE IF NOT EXISTS rental_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER REFERENCES tenants(id),
     forklift_id TEXT REFERENCES forklifts(id) ON DELETE SET NULL,
     downtime_event_id INTEGER REFERENCES downtime_events(id),
 
@@ -340,6 +389,7 @@ CREATE INDEX idx_rental_downtime ON rental_records(downtime_event_id);
 
 CREATE TABLE IF NOT EXISTS alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER REFERENCES tenants(id),
     forklift_id TEXT REFERENCES forklifts(id) ON DELETE CASCADE,
 
     -- Alert details
@@ -407,6 +457,7 @@ CREATE TABLE IF NOT EXISTS alert_acknowledgments (
 
 CREATE TABLE IF NOT EXISTS risk_assessments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER REFERENCES tenants(id),
     forklift_id TEXT NOT NULL REFERENCES forklifts(id) ON DELETE CASCADE,
 
     -- Risk scores (1-10 scale)
@@ -933,6 +984,7 @@ ORDER BY
 
 CREATE TABLE IF NOT EXISTS inbound_invoices (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER REFERENCES tenants(id),
 
     -- Email metadata
     email_from TEXT,
@@ -979,3 +1031,18 @@ CREATE INDEX idx_inbound_invoices_status ON inbound_invoices(status);
 CREATE INDEX idx_inbound_invoices_vendor ON inbound_invoices(vendor_name);
 CREATE INDEX idx_inbound_invoices_invoice_num ON inbound_invoices(invoice_number);
 CREATE INDEX idx_inbound_invoices_created ON inbound_invoices(created_at);
+CREATE INDEX IF NOT EXISTS idx_inbound_invoices_tenant ON inbound_invoices(tenant_id);
+
+-- =====================================================
+-- TENANT ID INDEXES (for multi-tenant query performance)
+-- =====================================================
+
+CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_locations_tenant ON locations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_forklifts_tenant ON forklifts(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_maintenance_tenant ON maintenance_records(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_hour_readings_tenant ON hour_meter_readings(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_downtime_tenant ON downtime_events(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_rental_tenant ON rental_records(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_tenant ON alerts(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_risk_assessments_tenant ON risk_assessments(tenant_id);

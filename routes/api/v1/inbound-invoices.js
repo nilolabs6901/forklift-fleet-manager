@@ -11,6 +11,7 @@ const path = require('path');
 const fs = require('fs');
 const inboundInvoiceService = require('../../../services/inboundInvoiceService');
 const claudeVisionService = require('../../../services/claudeVisionInvoiceService');
+const db = require('../../../config/sqlite-database');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -53,6 +54,7 @@ router.post('/webhook', upload.single('attachment'), async (req, res) => {
     try {
         const emailData = {
             from: req.body.from || req.body.sender || req.body.From,
+            to: req.body.to || req.body.recipient || req.body.To,
             subject: req.body.subject || req.body.Subject,
             date: req.body.date || req.body.Date || new Date().toISOString(),
             body: req.body.body || req.body['body-plain'] || req.body.Body
@@ -63,6 +65,12 @@ router.post('/webhook', upload.single('attachment'), async (req, res) => {
                 success: false,
                 error: 'No attachment provided'
             });
+        }
+
+        // Resolve tenant from email addresses
+        const tenant = db.tenants.resolveFromEmail(emailData.to, emailData.from);
+        if (tenant) {
+            emailData.tenant_id = tenant.id;
         }
 
         // Read the uploaded file
@@ -93,7 +101,7 @@ router.post('/webhook', upload.single('attachment'), async (req, res) => {
  */
 router.post('/webhook/json', async (req, res) => {
     try {
-        const { email, attachment, attachmentName } = req.body;
+        const { email, attachment, attachmentName, tenant_id } = req.body;
 
         if (!attachment) {
             return res.status(400).json({
@@ -104,9 +112,20 @@ router.post('/webhook/json', async (req, res) => {
 
         const emailData = {
             from: email?.from || email?.sender,
+            to: email?.to || email?.recipient,
             subject: email?.subject,
             date: email?.date || new Date().toISOString()
         };
+
+        // Resolve tenant: explicit tenant_id takes priority, then email-based resolution
+        if (tenant_id) {
+            emailData.tenant_id = parseInt(tenant_id);
+        } else {
+            const tenant = db.tenants.resolveFromEmail(emailData.to, emailData.from);
+            if (tenant) {
+                emailData.tenant_id = tenant.id;
+            }
+        }
 
         // attachment should be base64 encoded
         const result = await inboundInvoiceService.processInboundInvoice(

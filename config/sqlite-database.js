@@ -69,6 +69,150 @@ const dbApi = {
     // Raw database access for complex queries
     raw: db,
 
+    // =================== TENANTS ===================
+    tenants: {
+        findAll(options = {}) {
+            let sql = 'SELECT * FROM tenants WHERE 1=1';
+            const params = [];
+
+            if (options.status) {
+                sql += ' AND status = ?';
+                params.push(options.status);
+            }
+            sql += ' ORDER BY company_name';
+            if (options.limit) {
+                sql += ' LIMIT ?';
+                params.push(options.limit);
+            }
+            return db.prepare(sql).all(...params);
+        },
+
+        findById(id) {
+            return db.prepare('SELECT * FROM tenants WHERE id = ?').get(id);
+        },
+
+        findBySlug(slug) {
+            return db.prepare('SELECT * FROM tenants WHERE slug = ?').get(slug);
+        },
+
+        findByInboundEmail(email) {
+            return db.prepare('SELECT * FROM tenants WHERE inbound_email_address = ?').get(email);
+        },
+
+        findBySenderDomain(domain) {
+            return db.prepare('SELECT * FROM tenants WHERE sender_domain = ?').get(domain);
+        },
+
+        /**
+         * Resolve tenant from an inbound email.
+         * Checks recipient address first, then sender domain.
+         * @param {string} recipientEmail - The 'to' address (e.g., acme-invoices@fleetshield.com)
+         * @param {string} senderEmail - The 'from' address (e.g., billing@vendorco.com)
+         * @returns {Object|null} tenant record
+         */
+        resolveFromEmail(recipientEmail, senderEmail) {
+            // First try matching by inbound email address (most reliable)
+            if (recipientEmail) {
+                const byRecipient = db.prepare(
+                    'SELECT * FROM tenants WHERE inbound_email_address = ? AND status IN (\'trial\', \'active\')'
+                ).get(recipientEmail.toLowerCase().trim());
+                if (byRecipient) return byRecipient;
+            }
+
+            // Then try matching by sender domain
+            if (senderEmail) {
+                const domain = '@' + senderEmail.split('@').pop().toLowerCase().trim();
+                const byDomain = db.prepare(
+                    'SELECT * FROM tenants WHERE sender_domain = ? AND status IN (\'trial\', \'active\')'
+                ).get(domain);
+                if (byDomain) return byDomain;
+            }
+
+            return null;
+        },
+
+        create(data) {
+            const slug = data.slug || data.company_name.toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, '');
+
+            const trialDays = 30;
+            const trialExpires = new Date();
+            trialExpires.setDate(trialExpires.getDate() + trialDays);
+
+            const stmt = db.prepare(`
+                INSERT INTO tenants (
+                    company_name, slug, contact_name, contact_email, contact_phone,
+                    inbound_email_address, sender_domain,
+                    status, plan_type, trial_expires_at, features, settings
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+
+            const result = stmt.run(
+                data.company_name,
+                slug,
+                data.contact_name || null,
+                data.contact_email || null,
+                data.contact_phone || null,
+                data.inbound_email_address || `${slug}-invoices@fleetshield.com`,
+                data.sender_domain || null,
+                data.status || 'trial',
+                data.plan_type || 'trial',
+                data.trial_expires_at || trialExpires.toISOString(),
+                toJSON(data.features || ['invoices', 'risk_assessment', 'forklift_profiles']),
+                toJSON(data.settings || {})
+            );
+
+            return this.findById(result.lastInsertRowid);
+        },
+
+        update(id, data) {
+            const fields = [];
+            const values = [];
+
+            ['company_name', 'slug', 'contact_name', 'contact_email', 'contact_phone',
+             'inbound_email_address', 'sender_domain', 'status', 'plan_type',
+             'trial_expires_at', 'activated_at'].forEach(field => {
+                if (data[field] !== undefined) {
+                    fields.push(`${field} = ?`);
+                    values.push(data[field]);
+                }
+            });
+
+            if (data.features !== undefined) {
+                fields.push('features = ?');
+                values.push(toJSON(data.features));
+            }
+            if (data.settings !== undefined) {
+                fields.push('settings = ?');
+                values.push(toJSON(data.settings));
+            }
+
+            if (fields.length === 0) return this.findById(id);
+
+            fields.push("updated_at = datetime('now')");
+            values.push(id);
+
+            db.prepare(`UPDATE tenants SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+            return this.findById(id);
+        },
+
+        delete(id) {
+            return db.prepare('DELETE FROM tenants WHERE id = ?').run(id).changes > 0;
+        },
+
+        getStats() {
+            return db.prepare(`
+                SELECT
+                    COUNT(*) as total_tenants,
+                    SUM(CASE WHEN status = 'trial' THEN 1 ELSE 0 END) as trial_count,
+                    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
+                    SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended_count
+                FROM tenants
+            `).get();
+        }
+    },
+
     // =================== USERS ===================
     users: {
         findAll() {

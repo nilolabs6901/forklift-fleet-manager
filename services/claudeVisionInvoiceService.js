@@ -81,8 +81,12 @@ class ClaudeVisionInvoiceService {
         }
         fs.writeFileSync(savedPath, buffer);
 
+        // Tenant ID for multi-tenant scoping
+        const tenantId = emailData.tenant_id || null;
+
         // Create inbound invoice record
         const inboundRecord = this.createInboundRecord({
+            tenant_id: tenantId,
             email_from: emailData.from || emailData.sender,
             email_subject: emailData.subject,
             email_date: emailData.date || new Date().toISOString(),
@@ -105,8 +109,8 @@ class ClaudeVisionInvoiceService {
                 status: 'parsed'
             });
 
-            // Try to auto-match to a forklift
-            const matchedForklift = this.matchForklift(extractedData);
+            // Try to auto-match to a forklift (scoped by tenant if available)
+            const matchedForklift = this.matchForklift(extractedData, tenantId);
             if (matchedForklift) {
                 this.updateInboundRecord(inboundRecord.id, {
                     matched_forklift_id: matchedForklift.id,
@@ -122,7 +126,7 @@ class ClaudeVisionInvoiceService {
 
             // Auto-create maintenance record if confidence is high
             if (matchedForklift && matchedForklift.confidence >= 0.8) {
-                const maintenanceRecord = this.createMaintenanceFromInvoice(extractedData, matchedForklift.id, inboundRecord.id);
+                const maintenanceRecord = this.createMaintenanceFromInvoice(extractedData, matchedForklift.id, inboundRecord.id, tenantId);
                 this.updateInboundRecord(inboundRecord.id, {
                     maintenance_record_id: maintenanceRecord.id,
                     status: 'auto_processed',
@@ -302,8 +306,15 @@ Only return the JSON object, no other text.`;
     /**
      * Try to match extracted data to an existing forklift
      */
-    matchForklift(extractedData) {
-        const forklifts = db.forklifts.findAll({});
+    matchForklift(extractedData, tenantId = null) {
+        let forklifts;
+        if (tenantId) {
+            forklifts = db.raw.prepare(
+                'SELECT f.*, l.name as location_name FROM forklifts f LEFT JOIN locations l ON f.location_id = l.id WHERE f.tenant_id = ?'
+            ).all(tenantId);
+        } else {
+            forklifts = db.forklifts.findAll({});
+        }
         let bestMatch = null;
         let bestConfidence = 0;
 
@@ -375,7 +386,7 @@ Only return the JSON object, no other text.`;
      * Create a maintenance record from extracted invoice data
      * Also creates automatic downtime event if applicable
      */
-    createMaintenanceFromInvoice(extractedData, forkliftId, inboundId) {
+    createMaintenanceFromInvoice(extractedData, forkliftId, inboundId, tenantId = null) {
         const forklift = db.forklifts.findById(forkliftId);
 
         // Determine maintenance type
@@ -419,8 +430,13 @@ Only return the JSON object, no other text.`;
 
         const maintenanceRecord = db.maintenance.create(maintenanceData);
 
+        // Set tenant_id on the maintenance record
+        if (tenantId) {
+            db.raw.prepare('UPDATE maintenance_records SET tenant_id = ? WHERE id = ?').run(tenantId, maintenanceRecord.id);
+        }
+
         // Create automatic downtime event
-        const downtimeResult = this.createAutomaticDowntime(extractedData, forkliftId, maintenanceRecord.id, serviceDate);
+        const downtimeResult = this.createAutomaticDowntime(extractedData, forkliftId, maintenanceRecord.id, serviceDate, tenantId);
         if (downtimeResult) {
             extractedData.downtimeEvent = downtimeResult;
         }
@@ -549,7 +565,7 @@ Only return the JSON object, no other text.`;
     /**
      * Create automatic downtime event from invoice
      */
-    createAutomaticDowntime(extractedData, forkliftId, maintenanceRecordId, serviceDate) {
+    createAutomaticDowntime(extractedData, forkliftId, maintenanceRecordId, serviceDate, tenantId = null) {
         const analysis = this.analyzeDowntimeFromInvoice(extractedData);
 
         // Always create downtime for all invoice types
@@ -598,14 +614,15 @@ Only return the JSON object, no other text.`;
 
             const stmt = db.raw.prepare(`
                 INSERT INTO downtime_events (
-                    forklift_id, start_time, end_time, duration_hours,
+                    tenant_id, forklift_id, start_time, end_time, duration_hours,
                     type, root_cause, root_cause_detail, impact_level,
                     production_impact, estimated_production_loss, cost_per_hour_down,
                     maintenance_record_id, status, resolution_notes, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
             `);
 
             const result = stmt.run(
+                tenantId || null,
                 downtimeData.forklift_id,
                 downtimeData.start_time,
                 downtimeData.end_time,
@@ -641,12 +658,13 @@ Only return the JSON object, no other text.`;
     createInboundRecord(data) {
         const stmt = db.raw.prepare(`
             INSERT INTO inbound_invoices (
-                email_from, email_subject, email_date, attachment_path,
+                tenant_id, email_from, email_subject, email_date, attachment_path,
                 attachment_name, status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
         `);
 
         const result = stmt.run(
+            data.tenant_id || null,
             data.email_from,
             data.email_subject,
             data.email_date,
