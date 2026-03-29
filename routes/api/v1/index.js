@@ -69,6 +69,7 @@ const shareRoutes = require('./share');
 const inboundInvoiceRoutes = require('./inbound-invoices');
 const prospectRoutes = require('./prospects');
 const tenantRoutes = require('./tenants');
+const channelRoutes = require('./channels');
 
 // Mount routes
 router.use('/forklifts', forkliftRoutes);
@@ -85,6 +86,7 @@ router.use('/share', shareRoutes);
 router.use('/inbound-invoices', inboundInvoiceRoutes);
 router.use('/prospects', prospectRoutes);
 router.use('/tenants', tenantRoutes);
+router.use('/channels', channelRoutes);
 
 // API info endpoint
 router.get('/', (req, res) => {
@@ -101,7 +103,8 @@ router.get('/', (req, res) => {
             locations: '/api/v1/locations',
             users: '/api/v1/users',
             predictions: '/api/v1/predictions',
-            tenants: '/api/v1/tenants'
+            tenants: '/api/v1/tenants',
+            channels: '/api/v1/channels'
         }
     });
 });

@@ -328,6 +328,23 @@ class ChatAgentService {
     constructor() {
         // Intent patterns for query classification
         this.intents = {
+            draft_report: [
+                /draft\s*(a\s*)?(report|summary)/i,
+                /generate\s*(a\s*)?(report|summary)/i,
+                /write\s*(a\s*|up\s*a\s*)?(report|summary)/i,
+                /create\s*(a\s*)?(report|summary)/i,
+                /build\s*(a\s*)?(report|summary)/i,
+                /prepare\s*(a\s*)?(report|summary)/i,
+                /fleet\s*report/i,
+                /maintenance\s*report/i,
+                /cost\s*report/i,
+                /risk\s*report/i,
+                /downtime\s*report/i,
+                /weekly\s*report/i,
+                /monthly\s*report/i,
+                /executive\s*report/i,
+                /send\s*(a\s*|me\s*a\s*)?(report|summary)/i
+            ],
             fleet_summary: [
                 /fleet\s*(summary|overview|status)/i,
                 /how many\s*(forklifts|units|total)/i,
@@ -544,6 +561,9 @@ class ChatAgentService {
                 break;
             case 'transfer_history':
                 response = await this.getTransferHistory(entities, trimmedMessage);
+                break;
+            case 'draft_report':
+                response = await this.draftReport(entities, trimmedMessage);
                 break;
             case 'help':
                 response = this.getHelpMessage();
@@ -1210,6 +1230,13 @@ ${active.length > 0 ? '**Active Incidents:**\n' + active.slice(0, 3).map(d =>
 • "Recent transfers" - View transfer history
 • "Transfer history for FL-0001" - Unit transfer log
 
+**📝 Reports:**
+• "Draft a report" - Executive fleet summary
+• "Draft a cost report" - Spending analysis
+• "Draft a risk report" - Risk assessment summary
+• "Draft a maintenance report" - Service activity
+• "Draft a downtime report" - Downtime analysis
+
 **❓ System Help:**
 • "How do I add maintenance?" - Step-by-step guides
 • "What is risk score?" - Feature explanations
@@ -1451,6 +1478,379 @@ What would you like to know?`
             console.error('Transfer history error:', error);
             return { response: `I encountered an error fetching transfer history. Please try again.` };
         }
+    }
+
+    /**
+     * Draft a report based on the user's request
+     */
+    async draftReport(entities, message) {
+        try {
+            const lowerMessage = message.toLowerCase();
+
+            // Determine report type
+            let reportType = 'fleet_summary';
+            if (/cost|spend|budget|expense/i.test(message)) reportType = 'cost';
+            else if (/risk|assessment/i.test(message)) reportType = 'risk';
+            else if (/downtime|offline|out.?of.?service/i.test(message)) reportType = 'downtime';
+            else if (/maintenance|service|repair/i.test(message)) reportType = 'maintenance';
+            else if (/executive|weekly|monthly/i.test(message)) reportType = 'executive';
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            switch (reportType) {
+                case 'cost':
+                    return await this._draftCostReport(dateStr);
+                case 'risk':
+                    return await this._draftRiskReport(dateStr);
+                case 'downtime':
+                    return await this._draftDowntimeReport(dateStr);
+                case 'maintenance':
+                    return await this._draftMaintenanceReport(dateStr);
+                case 'executive':
+                    return await this._draftExecutiveReport(dateStr);
+                default:
+                    return await this._draftExecutiveReport(dateStr);
+            }
+        } catch (error) {
+            console.error('Report drafting error:', error);
+            return {
+                response: `I encountered an error drafting the report. Please try again or specify the type: "Draft a cost report", "Draft a risk report", "Draft a maintenance report".`
+            };
+        }
+    }
+
+    async _draftCostReport(dateStr) {
+        const maintenance = db.maintenance.findAll({});
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+        let totalCost = 0, last30Days = 0, last90Days = 0;
+        let laborTotal = 0, partsTotal = 0;
+
+        maintenance.forEach(m => {
+            const cost = m.total_cost || 0;
+            totalCost += cost;
+            laborTotal += m.labor_cost || 0;
+            partsTotal += m.parts_cost || 0;
+            if (m.service_date) {
+                const d = new Date(m.service_date);
+                if (d >= thirtyDaysAgo) last30Days += cost;
+                if (d >= ninetyDaysAgo) last90Days += cost;
+            }
+        });
+
+        const rentals = db.rentals.findAll({});
+        let rentalCost = 0;
+        rentals.forEach(r => rentalCost += r.total_cost || 0);
+
+        // Top spending forklifts
+        const costByForklift = {};
+        maintenance.forEach(m => {
+            if (m.forklift_id) {
+                costByForklift[m.forklift_id] = (costByForklift[m.forklift_id] || 0) + (m.total_cost || 0);
+            }
+        });
+        const topSpenders = Object.entries(costByForklift)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+
+        let response = `**COST ANALYSIS REPORT**\n*Generated: ${dateStr}*\n\n---\n\n`;
+        response += `**Summary**\n`;
+        response += `• Total Maintenance Spend: **$${totalCost.toLocaleString()}**\n`;
+        response += `• Last 30 Days: **$${last30Days.toLocaleString()}**\n`;
+        response += `• Last 90 Days: **$${last90Days.toLocaleString()}**\n`;
+        response += `• Labor Costs: $${laborTotal.toLocaleString()}\n`;
+        response += `• Parts Costs: $${partsTotal.toLocaleString()}\n`;
+        response += `• Rental Costs: $${rentalCost.toLocaleString()}\n`;
+        response += `• **Grand Total: $${(totalCost + rentalCost).toLocaleString()}**\n\n`;
+
+        if (topSpenders.length > 0) {
+            response += `**Top 5 Highest-Cost Units:**\n`;
+            topSpenders.forEach(([id, cost], i) => {
+                response += `${i + 1}. ${id}: $${cost.toLocaleString()}\n`;
+            });
+            response += '\n';
+        }
+
+        response += `**Avg Cost Per Service:** $${maintenance.length > 0 ? Math.round(totalCost / maintenance.length).toLocaleString() : 0}\n`;
+        response += `**Total Service Records:** ${maintenance.length}\n`;
+
+        return {
+            response,
+            data: {
+                type: 'table',
+                title: 'Cost Report',
+                rows: [
+                    { label: 'Total Spend', value: '$' + (totalCost + rentalCost).toLocaleString() },
+                    { label: 'Last 30 Days', value: '$' + last30Days.toLocaleString() },
+                    { label: 'Labor', value: '$' + laborTotal.toLocaleString() },
+                    { label: 'Parts', value: '$' + partsTotal.toLocaleString() },
+                    { label: 'Rentals', value: '$' + rentalCost.toLocaleString() }
+                ]
+            }
+        };
+    }
+
+    async _draftRiskReport(dateStr) {
+        const forklifts = db.forklifts.findAll({});
+        const critical = forklifts.filter(f => f.risk_level === 'critical');
+        const high = forklifts.filter(f => f.risk_level === 'high');
+        const medium = forklifts.filter(f => f.risk_level === 'medium');
+        const low = forklifts.filter(f => f.risk_level === 'low');
+
+        let response = `**RISK ASSESSMENT REPORT**\n*Generated: ${dateStr}*\n\n---\n\n`;
+        response += `**Fleet Risk Distribution (${forklifts.length} units)**\n`;
+        response += `• Critical: **${critical.length}** units\n`;
+        response += `• High: **${high.length}** units\n`;
+        response += `• Medium: ${medium.length} units\n`;
+        response += `• Low: ${low.length} units\n\n`;
+
+        const atRiskPct = forklifts.length > 0 ? Math.round(((critical.length + high.length) / forklifts.length) * 100) : 0;
+        response += `**At-Risk Rate:** ${atRiskPct}% of fleet\n\n`;
+
+        if (critical.length > 0) {
+            response += `**Critical Units (Immediate Action):**\n`;
+            critical.forEach(fl => {
+                response += `• **${fl.id}** - Score: ${fl.risk_score}/10, ${(fl.current_hours || 0).toLocaleString()} hrs, ${fl.year || 'N/A'} ${fl.manufacturer || ''} ${fl.model || ''}\n`;
+            });
+            response += '\n';
+        }
+
+        if (high.length > 0) {
+            response += `**High Risk Units (Plan Replacement):**\n`;
+            high.slice(0, 10).forEach(fl => {
+                response += `• **${fl.id}** - Score: ${fl.risk_score}/10, ${(fl.current_hours || 0).toLocaleString()} hrs\n`;
+            });
+            if (high.length > 10) response += `  ...and ${high.length - 10} more\n`;
+            response += '\n';
+        }
+
+        response += `**Recommendation:** ${critical.length > 0 ? `${critical.length} unit(s) require immediate replacement evaluation.` : 'No units require immediate replacement.'} ${high.length > 0 ? `${high.length} unit(s) should be scheduled for replacement planning.` : ''}`;
+
+        return {
+            response,
+            data: {
+                type: 'table',
+                title: 'Risk Report',
+                rows: [
+                    { label: 'Critical', value: critical.length },
+                    { label: 'High', value: high.length },
+                    { label: 'Medium', value: medium.length },
+                    { label: 'Low', value: low.length },
+                    { label: 'At-Risk %', value: atRiskPct + '%' }
+                ]
+            }
+        };
+    }
+
+    async _draftDowntimeReport(dateStr) {
+        const downtime = db.downtime.findAll({});
+        const active = downtime.filter(d => d.status === 'active');
+        const resolved = downtime.filter(d => d.status === 'resolved');
+
+        let totalHours = 0;
+        const byCause = {};
+        resolved.forEach(d => {
+            totalHours += d.duration_hours || 0;
+            const cause = d.root_cause || 'Unknown';
+            byCause[cause] = (byCause[cause] || 0) + 1;
+        });
+
+        // Units with most downtime
+        const byForklift = {};
+        downtime.forEach(d => {
+            if (d.forklift_id) {
+                byForklift[d.forklift_id] = (byForklift[d.forklift_id] || 0) + (d.duration_hours || 0);
+            }
+        });
+        const worstUnits = Object.entries(byForklift).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+        let response = `**DOWNTIME ANALYSIS REPORT**\n*Generated: ${dateStr}*\n\n---\n\n`;
+        response += `**Summary**\n`;
+        response += `• Active Incidents: **${active.length}**\n`;
+        response += `• Resolved Incidents: ${resolved.length}\n`;
+        response += `• Total Hours Lost: **${Math.round(totalHours).toLocaleString()} hours**\n\n`;
+
+        if (Object.keys(byCause).length > 0) {
+            response += `**Root Causes:**\n`;
+            Object.entries(byCause).sort((a, b) => b[1] - a[1]).forEach(([cause, count]) => {
+                const label = cause.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                response += `• ${label}: ${count} incidents\n`;
+            });
+            response += '\n';
+        }
+
+        if (worstUnits.length > 0) {
+            response += `**Most Downtime (by unit):**\n`;
+            worstUnits.forEach(([id, hours], i) => {
+                response += `${i + 1}. ${id}: ${Math.round(hours)} hours\n`;
+            });
+            response += '\n';
+        }
+
+        if (active.length > 0) {
+            response += `**Currently Down:**\n`;
+            active.slice(0, 5).forEach(d => {
+                response += `• ${d.forklift_id} - ${d.type || 'Unplanned'} (${d.root_cause || 'Unknown cause'})\n`;
+            });
+        }
+
+        return {
+            response,
+            data: {
+                type: 'table',
+                title: 'Downtime Report',
+                rows: [
+                    { label: 'Active Incidents', value: active.length },
+                    { label: 'Resolved', value: resolved.length },
+                    { label: 'Total Hours Lost', value: Math.round(totalHours).toLocaleString() }
+                ]
+            }
+        };
+    }
+
+    async _draftMaintenanceReport(dateStr) {
+        const maintenance = db.maintenance.findAll({});
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recent = maintenance.filter(m => m.service_date && new Date(m.service_date) >= thirtyDaysAgo);
+
+        const byType = {};
+        maintenance.forEach(m => {
+            const type = m.service_type || 'Unknown';
+            byType[type] = (byType[type] || 0) + 1;
+        });
+
+        // Overdue units
+        const forklifts = db.forklifts.findAll({});
+        const now = new Date();
+        const overdue = forklifts.filter(fl => {
+            if (!fl.next_service_date) return false;
+            return new Date(fl.next_service_date) < now;
+        });
+
+        let totalCost = 0;
+        recent.forEach(m => totalCost += m.total_cost || 0);
+
+        let response = `**MAINTENANCE REPORT**\n*Generated: ${dateStr}*\n\n---\n\n`;
+        response += `**Summary**\n`;
+        response += `• Total Records: ${maintenance.length}\n`;
+        response += `• Last 30 Days: **${recent.length} services**\n`;
+        response += `• 30-Day Spend: **$${totalCost.toLocaleString()}**\n`;
+        response += `• Units Overdue: **${overdue.length}**\n\n`;
+
+        if (Object.keys(byType).length > 0) {
+            response += `**By Service Type (All Time):**\n`;
+            Object.entries(byType).sort((a, b) => b[1] - a[1]).forEach(([type, count]) => {
+                const label = type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                response += `• ${label}: ${count}\n`;
+            });
+            response += '\n';
+        }
+
+        if (overdue.length > 0) {
+            response += `**Overdue Units:**\n`;
+            overdue.slice(0, 10).forEach(fl => {
+                const daysOverdue = Math.floor((now - new Date(fl.next_service_date)) / (1000 * 60 * 60 * 24));
+                response += `• ${fl.id}: ${daysOverdue} days overdue\n`;
+            });
+            if (overdue.length > 10) response += `  ...and ${overdue.length - 10} more\n`;
+        }
+
+        return {
+            response,
+            data: {
+                type: 'table',
+                title: 'Maintenance Report',
+                rows: [
+                    { label: 'Total Records', value: maintenance.length },
+                    { label: 'Last 30 Days', value: recent.length },
+                    { label: '30-Day Spend', value: '$' + totalCost.toLocaleString() },
+                    { label: 'Overdue Units', value: overdue.length }
+                ]
+            }
+        };
+    }
+
+    async _draftExecutiveReport(dateStr) {
+        const forklifts = db.forklifts.findAll({});
+        const stats = db.forklifts.getStats();
+        const alerts = db.alerts.findAll({ is_resolved: 0 });
+        const locations = db.locations.findAll();
+        const maintenance = db.maintenance.findAll({});
+        const downtime = db.downtime.findAll({});
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        let recentCost = 0;
+        const recentMaintenance = maintenance.filter(m => {
+            if (m.service_date && new Date(m.service_date) >= thirtyDaysAgo) {
+                recentCost += m.total_cost || 0;
+                return true;
+            }
+            return false;
+        });
+
+        const activeDowntime = downtime.filter(d => d.status === 'active');
+        const critical = forklifts.filter(f => f.risk_level === 'critical');
+        const highRisk = forklifts.filter(f => f.risk_level === 'high');
+        const criticalAlerts = alerts.filter(a => a.severity === 'critical');
+
+        const now = new Date();
+        const overdue = forklifts.filter(fl => fl.next_service_date && new Date(fl.next_service_date) < now);
+
+        let response = `**FLEET SHIELD — EXECUTIVE SUMMARY**\n*Generated: ${dateStr}*\n\n---\n\n`;
+
+        response += `**Fleet Overview**\n`;
+        response += `• Total Units: **${stats.total}** across ${locations.length} locations\n`;
+        response += `• Active: ${stats.active || 0} | Maintenance: ${stats.in_maintenance || 0} | Out of Service: ${stats.out_of_service || 0}\n\n`;
+
+        response += `**Alerts & Issues**\n`;
+        response += `• Active Alerts: **${alerts.length}** (${criticalAlerts.length} critical)\n`;
+        response += `• Maintenance Overdue: **${overdue.length} units**\n`;
+        response += `• Currently Down: **${activeDowntime.length} units**\n\n`;
+
+        response += `**Risk Status**\n`;
+        response += `• Critical: **${critical.length}** | High: **${highRisk.length}** | Medium: ${stats.medium_risk || 0} | Low: ${stats.low_risk || 0}\n`;
+        const atRiskPct = stats.total > 0 ? Math.round(((critical.length + highRisk.length) / stats.total) * 100) : 0;
+        response += `• Fleet At-Risk Rate: **${atRiskPct}%**\n\n`;
+
+        response += `**30-Day Maintenance**\n`;
+        response += `• Services Completed: ${recentMaintenance.length}\n`;
+        response += `• Spend: **$${recentCost.toLocaleString()}**\n\n`;
+
+        // Action items
+        const actions = [];
+        if (critical.length > 0) actions.push(`${critical.length} critical-risk unit(s) need replacement evaluation`);
+        if (overdue.length > 0) actions.push(`${overdue.length} unit(s) are overdue for maintenance`);
+        if (criticalAlerts.length > 0) actions.push(`${criticalAlerts.length} critical alert(s) require immediate attention`);
+        if (activeDowntime.length > 0) actions.push(`${activeDowntime.length} unit(s) currently offline`);
+
+        if (actions.length > 0) {
+            response += `**Action Items:**\n`;
+            actions.forEach(a => response += `• ${a}\n`);
+        } else {
+            response += `**Status: All Clear** — No urgent action items at this time.\n`;
+        }
+
+        return {
+            response,
+            data: {
+                type: 'table',
+                title: 'Executive Summary',
+                rows: [
+                    { label: 'Fleet Size', value: stats.total },
+                    { label: 'Active Alerts', value: alerts.length },
+                    { label: 'At-Risk Units', value: critical.length + highRisk.length },
+                    { label: '30-Day Spend', value: '$' + recentCost.toLocaleString() },
+                    { label: 'Units Down', value: activeDowntime.length }
+                ]
+            }
+        };
     }
 
     /**
