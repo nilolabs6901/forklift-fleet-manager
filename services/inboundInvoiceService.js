@@ -101,6 +101,20 @@ class InboundInvoiceService {
                 status: 'ready_for_review'
             });
 
+            // Check for duplicate invoice
+            const duplicate = this.checkDuplicate(extractedData.invoiceNumber, extractedData.vendor, tenantId);
+            if (duplicate) {
+                this.updateInboundRecord(inboundRecord.id, { status: 'rejected', rejection_reason: `Duplicate of invoice #${duplicate.id} (${duplicate.invoice_number})` });
+                return {
+                    success: false,
+                    inboundId: inboundRecord.id,
+                    duplicate: true,
+                    duplicateOf: duplicate.id,
+                    status: 'rejected',
+                    message: `Duplicate invoice detected. Already processed as record #${duplicate.id}.`
+                };
+            }
+
             // Try to auto-match to a forklift (scoped by tenant if available)
             const matchedForklift = this.matchForklift(extractedData, tenantId);
             if (matchedForklift) {
@@ -502,6 +516,35 @@ class InboundInvoiceService {
         }
 
         return db.raw.prepare(sql).all(...params);
+    }
+
+    /**
+     * Check if an invoice with the same number and vendor already exists for this tenant
+     * @returns {Object|null} existing record if duplicate found
+     */
+    checkDuplicate(invoiceNumber, vendor, tenantId) {
+        if (!invoiceNumber) return null;
+
+        let sql = `
+            SELECT id, invoice_number, vendor_name, status, created_at
+            FROM inbound_invoices
+            WHERE invoice_number = ?
+              AND status NOT IN ('rejected', 'error')
+        `;
+        const params = [invoiceNumber];
+
+        if (tenantId) {
+            sql += ' AND tenant_id = ?';
+            params.push(tenantId);
+        }
+
+        if (vendor) {
+            sql += ' AND vendor_name = ?';
+            params.push(vendor);
+        }
+
+        sql += ' LIMIT 1';
+        return db.raw.prepare(sql).get(...params) || null;
     }
 
     /**

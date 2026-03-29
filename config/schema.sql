@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS tenants (
     -- Trial tracking
     onboarded_at TEXT DEFAULT (datetime('now')),
     trial_expires_at TEXT,
+    trial_warning_sent_at TEXT, -- when we last sent "trial ending soon" notice
+    grace_period_ends_at TEXT, -- 7 days after trial_expires_at
     activated_at TEXT,
 
     -- Feature flags
@@ -42,6 +44,18 @@ CREATE INDEX IF NOT EXISTS idx_tenants_slug ON tenants(slug);
 CREATE INDEX IF NOT EXISTS idx_tenants_inbound_email ON tenants(inbound_email_address);
 CREATE INDEX IF NOT EXISTS idx_tenants_sender_domain ON tenants(sender_domain);
 CREATE INDEX IF NOT EXISTS idx_tenants_status ON tenants(status);
+
+-- Tenant email domain mappings (multiple sender domains per tenant)
+CREATE TABLE IF NOT EXISTS tenant_email_domains (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    domain TEXT NOT NULL, -- e.g., '@vendorcompany.com' or '@gmail.com' (client's personal email)
+    label TEXT, -- optional description, e.g., 'Bob's personal email', 'Ring Power billing'
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_email_domains_unique ON tenant_email_domains(tenant_id, domain);
+CREATE INDEX IF NOT EXISTS idx_tenant_email_domains_domain ON tenant_email_domains(domain);
 
 -- =====================================================
 -- CORE TABLES

@@ -204,6 +204,127 @@ router.delete('/:id', (req, res) => {
     }
 });
 
+// =================== SENDER DOMAIN MANAGEMENT ===================
+
+/**
+ * GET /api/v1/tenants/:id/domains
+ * List all email domains mapped to this tenant
+ */
+router.get('/:id/domains', (req, res) => {
+    try {
+        const tenant = db.tenants.findById(req.params.id);
+        if (!tenant) {
+            return res.status(404).json({ success: false, error: 'Tenant not found' });
+        }
+
+        const domains = db.tenantEmailDomains.findByTenantId(tenant.id);
+
+        // Include the primary sender_domain from the tenant record
+        const allDomains = [];
+        if (tenant.sender_domain) {
+            allDomains.push({ domain: tenant.sender_domain, label: 'Primary domain', is_primary: true });
+        }
+        for (const d of domains) {
+            allDomains.push({ ...d, is_primary: false });
+        }
+
+        res.json({ success: true, data: allDomains });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * POST /api/v1/tenants/:id/domains
+ * Add a sender email domain for this tenant (e.g., '@bobs-gmail.com')
+ */
+router.post('/:id/domains', (req, res) => {
+    try {
+        const tenant = db.tenants.findById(req.params.id);
+        if (!tenant) {
+            return res.status(404).json({ success: false, error: 'Tenant not found' });
+        }
+
+        const { domain, label } = req.body;
+        if (!domain) {
+            return res.status(400).json({ success: false, error: 'domain is required (e.g., "@company.com")' });
+        }
+
+        const created = db.tenantEmailDomains.create({
+            tenant_id: tenant.id,
+            domain,
+            label
+        });
+
+        res.status(201).json({
+            success: true,
+            data: created,
+            message: `Domain ${created.domain} added for ${tenant.company_name}. Emails from this domain will now route to this tenant.`
+        });
+    } catch (error) {
+        if (error.message.includes('UNIQUE constraint')) {
+            return res.status(409).json({ success: false, error: 'This domain is already mapped to this tenant' });
+        }
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * DELETE /api/v1/tenants/:id/domains/:domainId
+ * Remove a sender email domain mapping
+ */
+router.delete('/:id/domains/:domainId', (req, res) => {
+    try {
+        const deleted = db.tenantEmailDomains.delete(parseInt(req.params.domainId));
+        if (!deleted) {
+            return res.status(404).json({ success: false, error: 'Domain mapping not found' });
+        }
+        res.json({ success: true, message: 'Domain mapping removed' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// =================== TRIAL STATUS ===================
+
+/**
+ * GET /api/v1/tenants/:id/trial-status
+ * Check a tenant's trial/subscription status with grace period info
+ */
+router.get('/:id/trial-status', (req, res) => {
+    try {
+        const tenant = db.tenants.findById(req.params.id);
+        if (!tenant) {
+            return res.status(404).json({ success: false, error: 'Tenant not found' });
+        }
+
+        const status = db.tenants.checkTrialStatus(tenant);
+        res.json({ success: true, data: status });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * GET /api/v1/tenants/expiring/trials
+ * Get all tenants whose trials are expiring within 7 days (for sending warnings)
+ */
+router.get('/expiring/trials', (req, res) => {
+    try {
+        const expiring = db.tenants.getExpiringTrials();
+        res.json({
+            success: true,
+            data: expiring,
+            count: expiring.length,
+            message: expiring.length > 0
+                ? `${expiring.length} trial(s) expiring within 7 days`
+                : 'No trials expiring soon'
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // =================== ONBOARDING ===================
 
 /**
@@ -330,6 +451,10 @@ router.post('/:id/forklifts', (req, res) => {
 /**
  * POST /api/v1/tenants/:id/import-fleet
  * Import fleet from CSV/Excel file
+ *
+ * Query params:
+ *   ?dry_run=true — validate the file without importing anything.
+ *                    Shows what would be imported, what would fail, and why.
  */
 router.post('/:id/import-fleet', upload.single('fleet_file'), async (req, res) => {
     try {
@@ -342,6 +467,8 @@ router.post('/:id/import-fleet', upload.single('fleet_file'), async (req, res) =
             return res.status(400).json({ success: false, error: 'No file uploaded' });
         }
 
+        const dryRun = req.query.dry_run === 'true' || req.query.dry_run === '1';
+
         const ext = path.extname(req.file.originalname).toLowerCase();
         let rows = [];
 
@@ -350,6 +477,7 @@ router.post('/:id/import-fleet', upload.single('fleet_file'), async (req, res) =
             const csvContent = fs.readFileSync(req.file.path, 'utf8');
             const lines = csvContent.split('\n').filter(l => l.trim());
             if (lines.length < 2) {
+                fs.unlinkSync(req.file.path);
                 return res.status(400).json({ success: false, error: 'CSV file is empty or has no data rows' });
             }
 
@@ -383,6 +511,7 @@ router.post('/:id/import-fleet', upload.single('fleet_file'), async (req, res) =
                     rows.push(data);
                 });
             } catch (err) {
+                fs.unlinkSync(req.file.path);
                 return res.status(400).json({
                     success: false,
                     error: 'Failed to parse Excel file. Make sure exceljs is installed: ' + err.message
@@ -402,6 +531,7 @@ router.post('/:id/import-fleet', upload.single('fleet_file'), async (req, res) =
         };
 
         const created = [];
+        const validated = []; // for dry run
         const errors = [];
 
         // Get or create default location for this tenant
@@ -409,7 +539,11 @@ router.post('/:id/import-fleet', upload.single('fleet_file'), async (req, res) =
             'SELECT id FROM locations WHERE tenant_id = ? LIMIT 1'
         ).get(tenant.id);
 
-        for (const row of rows) {
+        // Valid fuel types for validation
+        const validFuelTypes = ['electric', 'propane', 'diesel', 'gas'];
+
+        for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+            const row = rows[rowIdx];
             // Normalize column names
             const normalized = {};
             for (const [key, value] of Object.entries(row)) {
@@ -418,8 +552,61 @@ router.post('/:id/import-fleet', upload.single('fleet_file'), async (req, res) =
             }
 
             if (!normalized.id) {
-                // Generate an ID if none provided
-                normalized.id = `${tenant.slug.toUpperCase().slice(0, 3)}-${String(created.length + errors.length + 1).padStart(3, '0')}`;
+                normalized.id = `${tenant.slug.toUpperCase().slice(0, 3)}-${String(created.length + validated.length + errors.length + 1).padStart(3, '0')}`;
+                normalized._id_generated = true;
+            }
+
+            // Validation checks
+            const warnings = [];
+
+            if (!normalized.model && !normalized.manufacturer) {
+                warnings.push('Missing make and model — consider adding for better invoice matching');
+            }
+            if (!normalized.serial_number) {
+                warnings.push('Missing serial number — invoice auto-matching will be less accurate');
+            }
+            if (normalized.fuel_type && !validFuelTypes.includes(normalized.fuel_type.toLowerCase())) {
+                warnings.push(`Unknown fuel type "${normalized.fuel_type}" — will default to "electric". Valid: ${validFuelTypes.join(', ')}`);
+            }
+            if (normalized.current_hours && isNaN(parseFloat(normalized.current_hours))) {
+                warnings.push(`Invalid hours value "${normalized.current_hours}" — will default to 0`);
+            }
+            if (normalized.year && (isNaN(parseInt(normalized.year)) || parseInt(normalized.year) < 1970 || parseInt(normalized.year) > 2030)) {
+                warnings.push(`Suspicious year "${normalized.year}"`);
+            }
+
+            // Check for duplicate ID
+            const existingForklift = db.forklifts.findById(normalized.id);
+            if (existingForklift) {
+                errors.push({ row: rowIdx + 2, data: normalized, error: `Unit ID "${normalized.id}" already exists in the system`, warnings });
+                continue;
+            }
+
+            // Check for duplicate serial number
+            if (normalized.serial_number) {
+                const existingSerial = db.raw.prepare('SELECT id FROM forklifts WHERE serial_number = ?').get(normalized.serial_number);
+                if (existingSerial) {
+                    errors.push({ row: rowIdx + 2, data: normalized, error: `Serial number "${normalized.serial_number}" already exists (unit ${existingSerial.id})`, warnings });
+                    continue;
+                }
+            }
+
+            if (dryRun) {
+                validated.push({
+                    row: rowIdx + 2,
+                    data: {
+                        id: normalized.id,
+                        id_generated: normalized._id_generated || false,
+                        model: normalized.model || null,
+                        manufacturer: normalized.manufacturer || null,
+                        serial_number: normalized.serial_number || null,
+                        year: normalized.year ? parseInt(normalized.year) : null,
+                        fuel_type: normalized.fuel_type || 'electric',
+                        current_hours: normalized.current_hours ? parseFloat(normalized.current_hours) : 0
+                    },
+                    warnings: warnings.length > 0 ? warnings : undefined
+                });
+                continue;
             }
 
             try {
@@ -440,24 +627,39 @@ router.post('/:id/import-fleet', upload.single('fleet_file'), async (req, res) =
                 db.raw.prepare('UPDATE forklifts SET tenant_id = ? WHERE id = ?').run(tenant.id, forklift.id);
                 created.push(forklift);
             } catch (err) {
-                errors.push({ row: normalized, error: err.message });
+                errors.push({ row: rowIdx + 2, data: normalized, error: err.message });
             }
         }
 
         // Clean up uploaded file
         fs.unlinkSync(req.file.path);
 
-        res.json({
-            success: created.length > 0,
-            data: {
-                imported: created.length,
-                failed: errors.length,
-                total_rows: rows.length,
-                forklifts: created.map(f => ({ id: f.id, model: f.model, manufacturer: f.manufacturer })),
-                errors: errors.length > 0 ? errors : undefined
-            },
-            message: `Imported ${created.length} forklifts for ${tenant.company_name}`
-        });
+        if (dryRun) {
+            res.json({
+                success: true,
+                dry_run: true,
+                data: {
+                    total_rows: rows.length,
+                    would_import: validated.length,
+                    would_fail: errors.length,
+                    preview: validated,
+                    errors: errors.length > 0 ? errors : undefined
+                },
+                message: `Dry run complete: ${validated.length} of ${rows.length} rows would import successfully.${errors.length > 0 ? ` ${errors.length} would fail.` : ''} Run again without ?dry_run=true to import.`
+            });
+        } else {
+            res.json({
+                success: created.length > 0,
+                data: {
+                    imported: created.length,
+                    failed: errors.length,
+                    total_rows: rows.length,
+                    forklifts: created.map(f => ({ id: f.id, model: f.model, manufacturer: f.manufacturer })),
+                    errors: errors.length > 0 ? errors : undefined
+                },
+                message: `Imported ${created.length} forklifts for ${tenant.company_name}`
+            });
+        }
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

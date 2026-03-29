@@ -105,30 +105,114 @@ const dbApi = {
 
         /**
          * Resolve tenant from an inbound email.
-         * Checks recipient address first, then sender domain.
+         * Priority: 1) recipient address, 2) sender_domain on tenant, 3) tenant_email_domains table
          * @param {string} recipientEmail - The 'to' address (e.g., acme-invoices@fleetshield.com)
          * @param {string} senderEmail - The 'from' address (e.g., billing@vendorco.com)
          * @returns {Object|null} tenant record
          */
         resolveFromEmail(recipientEmail, senderEmail) {
-            // First try matching by inbound email address (most reliable)
+            const allowedStatuses = '(\'trial\', \'active\')';
+
+            // 1. Match by recipient inbound email address (most reliable — unique per tenant)
             if (recipientEmail) {
                 const byRecipient = db.prepare(
-                    'SELECT * FROM tenants WHERE inbound_email_address = ? AND status IN (\'trial\', \'active\')'
+                    `SELECT * FROM tenants WHERE inbound_email_address = ? AND status IN ${allowedStatuses}`
                 ).get(recipientEmail.toLowerCase().trim());
                 if (byRecipient) return byRecipient;
             }
 
-            // Then try matching by sender domain
+            // 2. Match by sender domain on tenants table (primary domain)
             if (senderEmail) {
                 const domain = '@' + senderEmail.split('@').pop().toLowerCase().trim();
-                const byDomain = db.prepare(
-                    'SELECT * FROM tenants WHERE sender_domain = ? AND status IN (\'trial\', \'active\')'
+                const byPrimaryDomain = db.prepare(
+                    `SELECT * FROM tenants WHERE sender_domain = ? AND status IN ${allowedStatuses}`
                 ).get(domain);
-                if (byDomain) return byDomain;
+                if (byPrimaryDomain) return byPrimaryDomain;
+
+                // 3. Match via tenant_email_domains table (additional domains)
+                const byDomainMapping = db.prepare(`
+                    SELECT t.* FROM tenants t
+                    JOIN tenant_email_domains d ON d.tenant_id = t.id
+                    WHERE d.domain = ? AND t.status IN ${allowedStatuses}
+                `).get(domain);
+                if (byDomainMapping) return byDomainMapping;
             }
 
             return null;
+        },
+
+        /**
+         * Check if a tenant's trial is still valid (including grace period)
+         * @returns {Object} { allowed, status, message, daysRemaining, inGracePeriod }
+         */
+        checkTrialStatus(tenant) {
+            if (!tenant) return { allowed: false, status: 'not_found', message: 'Tenant not found' };
+            if (tenant.status === 'active') return { allowed: true, status: 'active', message: 'Active subscription' };
+            if (tenant.status === 'cancelled') return { allowed: false, status: 'cancelled', message: 'Account cancelled' };
+            if (tenant.status === 'suspended') return { allowed: false, status: 'suspended', message: 'Account suspended' };
+
+            // Trial status checks
+            if (tenant.status === 'trial') {
+                const now = new Date();
+                const trialEnd = tenant.trial_expires_at ? new Date(tenant.trial_expires_at) : null;
+
+                if (!trialEnd) return { allowed: true, status: 'trial', message: 'Trial (no expiry set)' };
+
+                const daysRemaining = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24));
+
+                if (daysRemaining > 7) {
+                    return { allowed: true, status: 'trial', message: `Trial: ${daysRemaining} days remaining`, daysRemaining };
+                }
+
+                if (daysRemaining > 0) {
+                    return { allowed: true, status: 'trial_ending', message: `Trial ending in ${daysRemaining} days`, daysRemaining, warn: true };
+                }
+
+                // Trial expired — check grace period (7 days after trial end)
+                const graceEnd = tenant.grace_period_ends_at
+                    ? new Date(tenant.grace_period_ends_at)
+                    : new Date(trialEnd.getTime() + 7 * 24 * 60 * 60 * 1000);
+                const graceDaysLeft = Math.ceil((graceEnd - now) / (1000 * 60 * 60 * 24));
+
+                if (graceDaysLeft > 0) {
+                    return {
+                        allowed: true, status: 'grace_period', inGracePeriod: true,
+                        message: `Trial expired. Grace period: ${graceDaysLeft} days left. Data is read-only.`,
+                        daysRemaining: graceDaysLeft, readOnly: true
+                    };
+                }
+
+                return { allowed: false, status: 'expired', message: 'Trial and grace period expired' };
+            }
+
+            return { allowed: false, status: 'unknown', message: 'Unknown tenant status' };
+        },
+
+        /**
+         * Get tenants that need trial expiration warnings (7 days before expiry)
+         */
+        getExpiringTrials() {
+            return db.prepare(`
+                SELECT * FROM tenants
+                WHERE status = 'trial'
+                  AND trial_expires_at IS NOT NULL
+                  AND trial_expires_at <= datetime('now', '+7 days')
+                  AND trial_expires_at > datetime('now')
+                  AND (trial_warning_sent_at IS NULL OR trial_warning_sent_at < datetime('now', '-1 days'))
+                ORDER BY trial_expires_at
+            `).all();
+        },
+
+        /**
+         * Get tenants whose trials have fully expired (past grace period)
+         */
+        getFullyExpiredTrials() {
+            return db.prepare(`
+                SELECT * FROM tenants
+                WHERE status = 'trial'
+                  AND trial_expires_at IS NOT NULL
+                  AND trial_expires_at < datetime('now', '-7 days')
+            `).all();
         },
 
         create(data) {
@@ -137,15 +221,18 @@ const dbApi = {
                 .replace(/^-|-$/g, '');
 
             const trialDays = 30;
+            const graceDays = 7;
             const trialExpires = new Date();
             trialExpires.setDate(trialExpires.getDate() + trialDays);
+            const graceExpires = new Date(trialExpires);
+            graceExpires.setDate(graceExpires.getDate() + graceDays);
 
             const stmt = db.prepare(`
                 INSERT INTO tenants (
                     company_name, slug, contact_name, contact_email, contact_phone,
                     inbound_email_address, sender_domain,
-                    status, plan_type, trial_expires_at, features, settings
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    status, plan_type, trial_expires_at, grace_period_ends_at, features, settings
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
             const result = stmt.run(
@@ -159,6 +246,7 @@ const dbApi = {
                 data.status || 'trial',
                 data.plan_type || 'trial',
                 data.trial_expires_at || trialExpires.toISOString(),
+                data.grace_period_ends_at || graceExpires.toISOString(),
                 toJSON(data.features || ['invoices', 'risk_assessment', 'forklift_profiles']),
                 toJSON(data.settings || {})
             );
@@ -172,7 +260,8 @@ const dbApi = {
 
             ['company_name', 'slug', 'contact_name', 'contact_email', 'contact_phone',
              'inbound_email_address', 'sender_domain', 'status', 'plan_type',
-             'trial_expires_at', 'activated_at'].forEach(field => {
+             'trial_expires_at', 'trial_warning_sent_at', 'grace_period_ends_at',
+             'activated_at'].forEach(field => {
                 if (data[field] !== undefined) {
                     fields.push(`${field} = ?`);
                     values.push(data[field]);
@@ -210,6 +299,39 @@ const dbApi = {
                     SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended_count
                 FROM tenants
             `).get();
+        }
+    },
+
+    // =================== TENANT EMAIL DOMAINS ===================
+    tenantEmailDomains: {
+        findByTenantId(tenantId) {
+            return db.prepare('SELECT * FROM tenant_email_domains WHERE tenant_id = ? ORDER BY domain').all(tenantId);
+        },
+
+        findByDomain(domain) {
+            return db.prepare('SELECT * FROM tenant_email_domains WHERE domain = ?').get(domain.toLowerCase().trim());
+        },
+
+        create(data) {
+            const domain = data.domain.toLowerCase().trim();
+            // Ensure domain starts with @
+            const normalizedDomain = domain.startsWith('@') ? domain : '@' + domain;
+
+            const stmt = db.prepare(`
+                INSERT INTO tenant_email_domains (tenant_id, domain, label)
+                VALUES (?, ?, ?)
+            `);
+            const result = stmt.run(data.tenant_id, normalizedDomain, data.label || null);
+            return db.prepare('SELECT * FROM tenant_email_domains WHERE id = ?').get(result.lastInsertRowid);
+        },
+
+        delete(id) {
+            return db.prepare('DELETE FROM tenant_email_domains WHERE id = ?').run(id).changes > 0;
+        },
+
+        deleteByTenantAndDomain(tenantId, domain) {
+            return db.prepare('DELETE FROM tenant_email_domains WHERE tenant_id = ? AND domain = ?')
+                .run(tenantId, domain.toLowerCase().trim()).changes > 0;
         }
     },
 

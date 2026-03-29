@@ -43,12 +43,47 @@ const upload = multer({
     }
 });
 
+// =================== SHARED HELPERS ===================
+
+/**
+ * Resolve tenant and check trial status for inbound webhooks.
+ * Returns { tenant, emailData } or sends error response.
+ */
+function resolveWebhookTenant(emailData, explicitTenantId) {
+    let tenant = null;
+
+    if (explicitTenantId) {
+        tenant = db.tenants.findById(parseInt(explicitTenantId));
+    } else {
+        tenant = db.tenants.resolveFromEmail(emailData.to, emailData.from);
+    }
+
+    if (tenant) {
+        // Check trial/subscription status
+        const trialCheck = db.tenants.checkTrialStatus(tenant);
+        if (!trialCheck.allowed) {
+            return { tenant: null, blocked: true, blockReason: trialCheck.message, status: trialCheck.status };
+        }
+        if (trialCheck.readOnly) {
+            // Grace period — still accept invoices (data preservation) but flag them
+            emailData.grace_period = true;
+        }
+        emailData.tenant_id = tenant.id;
+    }
+    // If no tenant found, invoice still gets processed — lands in "unmatched" queue
+
+    return { tenant, blocked: false, emailData };
+}
+
 // =================== WEBHOOK ENDPOINT FOR EMAIL SERVICES ===================
 
 /**
  * POST /api/v1/inbound-invoices/webhook
  * Webhook endpoint for email services (Mailgun, SendGrid, Power Automate)
  * Accepts multipart form data with email metadata and attachments
+ *
+ * Always returns 200 for valid requests so email services don't retry needlessly.
+ * Returns 400 for missing data, 500 only for true server errors (triggers retry).
  */
 router.post('/webhook', upload.single('attachment'), async (req, res) => {
     try {
@@ -67,20 +102,34 @@ router.post('/webhook', upload.single('attachment'), async (req, res) => {
             });
         }
 
-        // Resolve tenant from email addresses
-        const tenant = db.tenants.resolveFromEmail(emailData.to, emailData.from);
-        if (tenant) {
-            emailData.tenant_id = tenant.id;
+        // Resolve tenant and check status
+        const resolution = resolveWebhookTenant(emailData);
+        if (resolution.blocked) {
+            // Accept the webhook (200) so the email service doesn't keep retrying,
+            // but log it and don't process
+            console.warn(`[Webhook] Blocked invoice from ${emailData.from}: ${resolution.blockReason}`);
+            return res.json({
+                success: false,
+                warning: resolution.blockReason,
+                status: resolution.status
+            });
         }
 
         // Read the uploaded file
         const attachmentData = fs.readFileSync(req.file.path);
 
         const result = await inboundInvoiceService.processInboundInvoice(
-            emailData,
+            resolution.emailData || emailData,
             attachmentData,
             req.file.originalname
         );
+
+        // Flag if no tenant was matched
+        if (!resolution.tenant) {
+            result.warning = 'No tenant matched for this email. Invoice saved to unmatched queue.';
+            result.unmatched = true;
+            console.warn(`[Webhook] Unmatched invoice: from=${emailData.from}, to=${emailData.to}, subject=${emailData.subject}`);
+        }
 
         res.json({
             success: true,
@@ -88,6 +137,7 @@ router.post('/webhook', upload.single('attachment'), async (req, res) => {
         });
     } catch (error) {
         console.error('[Inbound Invoice Webhook Error]', error);
+        // Return 500 so email services (Mailgun, SendGrid) will retry
         res.status(500).json({
             success: false,
             error: error.message
@@ -98,6 +148,9 @@ router.post('/webhook', upload.single('attachment'), async (req, res) => {
 /**
  * POST /api/v1/inbound-invoices/webhook/json
  * JSON-based webhook for services that send base64-encoded attachments
+ *
+ * Always returns 200 for valid requests so automation tools don't retry needlessly.
+ * Returns 400 for missing data, 500 only for true server errors (triggers retry).
  */
 router.post('/webhook/json', async (req, res) => {
     try {
@@ -117,22 +170,29 @@ router.post('/webhook/json', async (req, res) => {
             date: email?.date || new Date().toISOString()
         };
 
-        // Resolve tenant: explicit tenant_id takes priority, then email-based resolution
-        if (tenant_id) {
-            emailData.tenant_id = parseInt(tenant_id);
-        } else {
-            const tenant = db.tenants.resolveFromEmail(emailData.to, emailData.from);
-            if (tenant) {
-                emailData.tenant_id = tenant.id;
-            }
+        // Resolve tenant and check status
+        const resolution = resolveWebhookTenant(emailData, tenant_id);
+        if (resolution.blocked) {
+            console.warn(`[Webhook/JSON] Blocked invoice from ${emailData.from}: ${resolution.blockReason}`);
+            return res.json({
+                success: false,
+                warning: resolution.blockReason,
+                status: resolution.status
+            });
         }
 
         // attachment should be base64 encoded
         const result = await inboundInvoiceService.processInboundInvoice(
-            emailData,
+            resolution.emailData || emailData,
             attachment,
             attachmentName || 'invoice.pdf'
         );
+
+        if (!resolution.tenant) {
+            result.warning = 'No tenant matched for this email. Invoice saved to unmatched queue.';
+            result.unmatched = true;
+            console.warn(`[Webhook/JSON] Unmatched invoice: from=${emailData.from}, to=${emailData.to}`);
+        }
 
         res.json({
             success: true,
@@ -186,6 +246,72 @@ router.post('/upload', upload.single('invoice'), async (req, res) => {
             success: false,
             error: error.message
         });
+    }
+});
+
+// =================== UNMATCHED INVOICE QUEUE ===================
+
+/**
+ * GET /api/v1/inbound-invoices/unmatched
+ * Get invoices that could not be matched to any tenant
+ */
+router.get('/unmatched', (req, res) => {
+    try {
+        const invoices = db.raw.prepare(`
+            SELECT i.*, f.id as matched_unit_id, f.model as matched_model
+            FROM inbound_invoices i
+            LEFT JOIN forklifts f ON i.matched_forklift_id = f.id
+            WHERE i.tenant_id IS NULL
+            ORDER BY i.created_at DESC
+            LIMIT ?
+        `).all(req.query.limit ? parseInt(req.query.limit) : 50);
+
+        res.json({
+            success: true,
+            data: invoices.map(inv => ({
+                ...inv,
+                extracted_data: inv.extracted_data ? JSON.parse(inv.extracted_data) : null
+            })),
+            count: invoices.length,
+            message: invoices.length > 0
+                ? `${invoices.length} invoices need tenant assignment`
+                : 'No unmatched invoices'
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * PUT /api/v1/inbound-invoices/:id/assign-tenant
+ * Manually assign an unmatched invoice to a tenant
+ */
+router.put('/:id/assign-tenant', (req, res) => {
+    try {
+        const { tenant_id } = req.body;
+        if (!tenant_id) {
+            return res.status(400).json({ success: false, error: 'tenant_id is required' });
+        }
+
+        const tenant = db.tenants.findById(tenant_id);
+        if (!tenant) {
+            return res.status(404).json({ success: false, error: 'Tenant not found' });
+        }
+
+        const invoice = db.raw.prepare('SELECT * FROM inbound_invoices WHERE id = ?').get(req.params.id);
+        if (!invoice) {
+            return res.status(404).json({ success: false, error: 'Invoice not found' });
+        }
+
+        db.raw.prepare('UPDATE inbound_invoices SET tenant_id = ?, updated_at = datetime(\'now\') WHERE id = ?')
+            .run(tenant_id, req.params.id);
+
+        res.json({
+            success: true,
+            message: `Invoice ${req.params.id} assigned to ${tenant.company_name}`
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
