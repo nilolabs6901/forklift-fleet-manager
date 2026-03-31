@@ -76,6 +76,9 @@ CREATE TABLE IF NOT EXISTS forklifts (
     current_value REAL,
     depreciation_rate REAL DEFAULT 0.15,
 
+    -- Application severity (operating environment)
+    application_severity TEXT DEFAULT 'clean' CHECK (application_severity IN ('clean', 'medium', 'severe')),
+
     -- Risk assessment
     risk_score INTEGER DEFAULT 1 CHECK (risk_score BETWEEN 1 AND 10),
     risk_level TEXT DEFAULT 'low' CHECK (risk_level IN ('low', 'medium', 'high', 'critical')),

@@ -126,11 +126,16 @@ The Forklift Fleet Manager is a comprehensive, cloud-based fleet management solu
 
 **What it does:**
 - Calculates risk scores for each unit based on:
-  - Equipment age
-  - Operating hours
-  - Maintenance history frequency
-  - Cost trends
-  - Downtime history
+  - Equipment age (15% weight)
+  - Operating hours (20% weight)
+  - Maintenance cost trends (25% weight)
+  - Repair frequency (20% weight)
+  - Downtime history (20% weight)
+- Applies an **Application Severity** multiplier based on the forklift's operating environment:
+  - **Clean** (dry warehouse, climate-controlled): 1.0x (no adjustment)
+  - **Medium** (outdoor yard, dusty, moderate wear): 1.2x
+  - **Severe** (freezer, cold storage, corrosive, wet): 1.4x
+- Formula: `Overall Score = round(raw weighted score × application severity multiplier)` (capped at 10)
 - Categorizes units as: Low, Medium, High, or Critical risk
 - Generates replacement recommendations
 - Creates budget projections for fleet renewal

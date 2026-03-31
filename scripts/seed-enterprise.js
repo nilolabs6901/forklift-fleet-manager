@@ -239,7 +239,8 @@ async function seed() {
                 risk_score: riskScore,
                 risk_level: riskLevel,
                 service_interval_hours: 250,
-                service_interval_days: 90
+                service_interval_days: 90,
+                application_severity: randomItem(['clean', 'clean', 'clean', 'medium', 'medium', 'severe'])
             });
 
             createdForklifts.push(forklift);

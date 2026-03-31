@@ -35,6 +35,17 @@ try {
     console.error('Schema initialization error:', err.message);
 }
 
+// Run migrations for existing databases
+try {
+    const columns = db.prepare("PRAGMA table_info(forklifts)").all();
+    if (!columns.find(c => c.name === 'application_severity')) {
+        db.exec("ALTER TABLE forklifts ADD COLUMN application_severity TEXT DEFAULT 'clean' CHECK (application_severity IN ('clean', 'medium', 'severe'))");
+        console.log('Migration: Added application_severity column to forklifts');
+    }
+} catch (err) {
+    console.error('Migration error:', err.message);
+}
+
 // =====================================================
 // HELPER FUNCTIONS
 // =====================================================
@@ -290,8 +301,9 @@ const dbApi = {
                     fuel_type, capacity_lbs, mast_type, tire_type, status,
                     current_hours, purchase_date, purchase_price, current_value,
                     service_interval_hours, service_interval_days, notes,
-                    risk_score, risk_level, last_service_date, next_service_date, next_service_hours
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    risk_score, risk_level, last_service_date, next_service_date, next_service_hours,
+                    application_severity
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
             stmt.run(
@@ -317,7 +329,8 @@ const dbApi = {
                 data.risk_level || 'low',
                 data.last_service_date || null,
                 data.next_service_date || null,
-                data.next_service_hours || null
+                data.next_service_hours || null,
+                data.application_severity || 'clean'
             );
 
             return this.findById(data.id);
@@ -337,7 +350,7 @@ const dbApi = {
                 'risk_score', 'risk_level', 'risk_factors', 'last_risk_assessment',
                 'expected_lifespan_years', 'expected_lifespan_hours',
                 'recommended_action', 'projected_replacement_date', 'projected_replacement_year',
-                'notes', 'image_url', 'qr_code'
+                'notes', 'image_url', 'qr_code', 'application_severity'
             ];
 
             allowedFields.forEach(field => {

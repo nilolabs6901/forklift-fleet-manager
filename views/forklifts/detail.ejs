@@ -96,6 +96,15 @@
               <td class="text-end"><%= forklift.capacity_lbs ? forklift.capacity_lbs.toLocaleString() + ' lbs' : '-' %></td>
             </tr>
             <tr>
+              <th class="text-muted">Application</th>
+              <td class="text-end">
+                <% const appSev = forklift.application_severity || 'clean'; %>
+                <span class="badge bg-<%= appSev === 'severe' ? 'danger' : appSev === 'medium' ? 'warning' : 'success' %> text-capitalize">
+                  <%= appSev %>
+                </span>
+              </td>
+            </tr>
+            <tr>
               <th class="text-muted">Location</th>
               <td class="text-end">
                 <% if (forklift.location_name) { %>

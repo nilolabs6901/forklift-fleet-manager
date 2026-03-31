@@ -98,7 +98,8 @@ for (let i = 1; i <= 25; i++) {
     next_service_date: nextServiceDate.toISOString().split('T')[0],
     purchase_date: purchaseDate.toISOString().split('T')[0],
     purchase_price: 15000 + Math.floor(Math.random() * 35000),
-    risk_level: riskLevel
+    risk_level: riskLevel,
+    application_severity: ['clean', 'clean', 'clean', 'medium', 'medium', 'severe'][Math.floor(Math.random() * 6)]
   };
 
   db.forklifts.create(forklift);

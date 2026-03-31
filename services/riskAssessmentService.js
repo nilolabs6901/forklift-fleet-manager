@@ -16,6 +16,13 @@ class RiskAssessmentService {
             downtime: 0.20
         };
 
+        // Application severity multipliers
+        this.applicationSeverityMultipliers = {
+            clean: 1.0,
+            medium: 1.2,
+            severe: 1.4
+        };
+
         // Thresholds
         this.thresholds = {
             ageYears: { low: 3, medium: 6, high: 8, critical: 10 },
@@ -49,14 +56,15 @@ class RiskAssessmentService {
             downtime: this.calculateDowntimeScore(downtimeData)
         };
 
-        // Calculate weighted overall score
-        const overallScore = Math.round(
+        // Calculate weighted overall score with application severity multiplier
+        const applicationMultiplier = this.applicationSeverityMultipliers[forklift.application_severity] || 1.0;
+        const rawScore =
             (scores.age * this.weights.age) +
             (scores.hours * this.weights.hours) +
             (scores.maintenanceCost * this.weights.maintenanceCost) +
             (scores.repairFrequency * this.weights.repairFrequency) +
-            (scores.downtime * this.weights.downtime)
-        );
+            (scores.downtime * this.weights.downtime);
+        const overallScore = Math.min(10, Math.round(rawScore * applicationMultiplier));
 
         // Determine risk factors
         const riskFactors = this.identifyRiskFactors(scores, forklift, maintenanceData, downtimeData);
