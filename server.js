@@ -1,6 +1,7 @@
 /**
- * Forklift Fleet Manager - Enterprise Server
- * Comprehensive fleet management system for regional operators
+ * Fleet Shield — Forklift Fleet Management SaaS
+ * AI-powered fleet management for warehousing, distribution, 3PL, and manufacturing operations.
+ * Built by people from inside the forklift dealership world.
  */
 
 require('dotenv').config();
@@ -120,7 +121,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
     console.log('='.repeat(50));
-    console.log('Forklift Fleet Manager v2.0');
+    console.log('Fleet Shield v2.0 — Forklift Fleet Management SaaS');
     console.log('='.repeat(50));
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`API available at http://localhost:${PORT}/api/v1`);

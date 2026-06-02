@@ -1,12 +1,22 @@
-# Forklift Fleet Manager - System Documentation
+# Fleet Shield — Forklift Fleet Management SaaS
 
 ## Executive Summary
 
-The Forklift Fleet Manager is a comprehensive, cloud-based fleet management solution designed for organizations that operate forklift fleets across multiple locations. The system provides real-time tracking, predictive maintenance, automated invoice processing, downtime analysis, and detailed reporting to help fleet managers reduce costs, improve equipment uptime, and streamline operations.
+Fleet Shield is a B2B SaaS platform for forklift fleet management. It's built for organizations operating forklift/material-handling fleets large enough that manual management has become a cost and risk center. Fleet Shield provides real-time tracking, predictive maintenance, AI-powered invoice parsing and discrepancy detection, fleet risk scoring, WhatsApp/SMS field agent, and centralized fleet/cost/maintenance visibility — all to eliminate the two biggest cost leaks: downtime and invoice overcharges.
+
+Built by people from inside the forklift dealership world, Fleet Shield targets real operational problems — not generic fleet software.
 
 ---
 
-## Core Features
+## Core Capabilities
+
+### Who Fleet Shield Is For (ICP)
+
+**Firmographics:** Warehousing, distribution, third-party logistics (3PL), and manufacturing operations. Sized by truck count — fleet size matters, not revenue or headcount. Single large facilities or multi-site operators. US-based to start.
+
+**Buyer personas:** Operations leaders, fleet/facility managers, warehouse and distribution center managers, supply chain and logistics directors, and C-suite/ownership at smaller operators. Practical, operations-minded buyers — not technical buyers. Keep messaging concrete and outcome-focused.
+
+**Poor fit:** Operations with only a handful of trucks, businesses with no in-house material-handling fleet, price-only buyers indifferent to downtime or invoice accuracy.
 
 ### 1. Fleet Inventory Management
 
@@ -18,9 +28,9 @@ The Forklift Fleet Manager is a comprehensive, cloud-based fleet management solu
 - Tracks equipment status (active, in maintenance, out of service, retired)
 
 **Key Benefits:**
-- Single source of truth for all fleet equipment
+- Single source of truth for all fleet equipment — no more spreadsheets and tribal knowledge
 - Quick access to any unit's complete history
-- Easy identification of equipment by location, status, or specifications
+- Easy identification of equipment by location, status, or risk level
 
 **How it works:**
 - Each forklift has a unique ID (e.g., FL-0001, FT-0103)
@@ -47,7 +57,7 @@ The Forklift Fleet Manager is a comprehensive, cloud-based fleet management solu
 - **Recall:** Manufacturer-initiated service campaigns
 
 **Key Benefits:**
-- Complete service history for every unit
+- Complete service history for every unit — no more lost work orders
 - Cost tracking and analysis by type, vendor, and equipment
 - Proactive maintenance scheduling to prevent breakdowns
 - Invoice linking for audit trails and cost verification
@@ -78,7 +88,8 @@ The Forklift Fleet Manager is a comprehensive, cloud-based fleet management solu
 - Auto-processes invoices with 80%+ confidence match
 
 **Key Benefits:**
-- Eliminates manual data entry from invoices
+- Eliminates manual data entry from invoices — saves hours per week
+- Catches overcharges and discrepancies before you pay
 - Reduces errors in maintenance record creation
 - Faster processing of vendor invoices
 - Automatic cost allocation to correct equipment
@@ -115,10 +126,28 @@ The Forklift Fleet Manager is a comprehensive, cloud-based fleet management solu
 - Calculates downtime cost based on configurable hourly rate ($150/hour default)
 
 **Key Benefits:**
-- No manual downtime logging required
-- Accurate downtime cost tracking
+- No manual downtime logging required — automated from invoice processing
+- Accurate downtime cost tracking (configurable hourly rate, default $150/hr)
 - Root cause analysis for fleet-wide patterns
 - Supports data-driven decisions on repair vs. replace
+
+---
+
+### 3. AI Invoice Parsing & Discrepancy Detection
+
+**What it does:**
+- Uses AI (Claude Vision) to extract, validate, and flag invoice line items
+- Detects price discrepancies, duplicate charges, and suspicious billing patterns
+- Compares invoiced amounts against expected rates and historical benchmarks
+- Auto-generates PDF copies and links invoices to the correct forklift
+- Alerts fleet managers when a vendor invoice looks wrong before payment
+
+**Why it matters:**
+- Vendor invoice errors and overcharges are a silent cost center — Fleet Shield catches them
+- Fleet managers stop blindly approving invoices from unknown vendors
+- Every dollar spent on maintenance is verified, not guessed
+
+---
 
 ---
 
@@ -146,6 +175,21 @@ The Forklift Fleet Manager is a comprehensive, cloud-based fleet management solu
 - Data-driven replacement decisions
 - Budget planning for fleet renewal
 - Reduced unexpected breakdowns
+
+---
+
+### 5. Fleet Risk Scoring Engine
+
+**What it does:**
+- Calculates a risk score for each unit based on equipment age, operating hours, maintenance history frequency, cost trends, and downtime history
+- Categorizes units as: Low, Medium, High, or Critical risk
+- Generates replacement recommendations with cost impact estimates
+- Creates budget projections for fleet renewal
+
+**Why it matters:**
+- Fleet managers can prioritize which units to repair, which to replace, and when to budget
+- Reduces surprise breakdowns on critical production equipment
+- Moves fleet management from reactive firefighting to proactive planning
 
 ---
 
@@ -329,7 +373,13 @@ The Forklift Fleet Manager is a comprehensive, cloud-based fleet management solu
 ### General
 
 **Q: How many forklifts can the system manage?**
-A: The system is designed to handle fleets of any size, from a few units to hundreds across multiple locations.
+A: Fleet Shield is designed for operations with fleets large enough that manual management is a cost center — typically 10+ units, scaling to hundreds across multiple locations. Small operations with just a handful of trucks won't see enough ROI to justify the investment.
+
+**Q: Who is Fleet Shield for?**
+A: Warehousing, distribution, 3PL, and manufacturing operations. Operators who lose money from downtime, get overcharged by vendors, and waste time on spreadsheets. If you manage a forklift fleet and it's a pain point, Fleet Shield is for you.
+
+**Q: Is the data backed up?**
+A: Yes, the cloud deployment includes automatic backups. Data can also be exported for local backup.
 
 **Q: Can we track equipment other than forklifts?**
 A: Yes, the system can track any mobile equipment with similar maintenance needs (pallet jacks, reach trucks, order pickers, etc.).
@@ -411,6 +461,7 @@ A: Downtime cost = hours down × configured hourly rate (default $150/hour, cust
 - No downtime for most updates
 
 ### Support Channels
+- WhatsApp/SMS field agent — fleet managers and operators communicate via mobile
 - Email support
 - Documentation and help guides
 - Video tutorials (coming soon)
@@ -419,13 +470,14 @@ A: Downtime cost = hours down × configured hourly rate (default $150/hour, cust
 
 ## Competitive Advantages
 
-1. **AI-Powered Invoice Processing:** Automatic data extraction eliminates manual entry
-2. **Automatic Downtime Tracking:** No manual logging required
-3. **Integrated Risk Assessment:** Data-driven replacement decisions
-4. **Modern User Interface:** Intuitive, responsive design
-5. **Cloud-Based:** Access from anywhere, no IT infrastructure required
-6. **Cost Effective:** Reduces administrative overhead significantly
-7. **Audit Trail:** Complete history linking invoices to maintenance to equipment
+1. **Built by Forklift Dealership Insiders:** Fleet Shield was built by people who lived inside the forklift dealership world. We target the real cost leaks — downtime plus invoice overcharges — not generic fleet software that misses what actually costs operators money.
+2. **AI-Powered Invoice Parsing & Discrepancy Detection:** Catches vendor overcharges before you pay. Automatic data extraction eliminates manual entry and catches errors.
+3. **Automatic Downtime Tracking:** No manual logging required — derived from invoice processing.
+4. **Fleet Risk Scoring Engine:** Data-driven replacement decisions with cost impact estimates.
+5. **WhatsApp/SMS Field Agent:** Fleet managers and operators communicate via the tools they already use daily.
+6. **Modern User Interface:** Intuitive, responsive design — operations teams adopt it, not resist it.
+7. **Cloud-Based:** Access from anywhere, no IT infrastructure required.
+8. **Audit Trail:** Complete history linking invoices to maintenance to equipment — every dollar traceable.
 
 ---
 
